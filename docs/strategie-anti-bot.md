@@ -4,10 +4,10 @@
 > Le silo d'acquisition retient le principe **« détecter, classifier, respecter, s'adapter — jamais déjouer »** :
 > **pas** de rotation de proxy/identité, d'usurpation d'empreinte ni d'unlockers managés d'évasion. Les sections
 > ci-dessous décrivant une **cascade furtive** / des **services d'évasion** sont conservées comme
-> **référence / veille**, **pas** comme cible. Cf. [ADR 0021](../adr/0021-couche-scraping-dediee.md).
+> **référence / veille**, **pas** comme cible. Cf. **ADR 0021** (monorepo `carto_entreprises`).
 
 > **Doc de référence d'architecture** — pas un benchmark universel. Le détail outil par outil (stars, activité,
-> licence, pérennité…) vit dans le **référentiel** [`technologies-referentiel.xlsx`](../technologies-referentiel.xlsx)
+> licence, pérennité…) vit dans le **référentiel** `technologies-referentiel.xlsx` (monorepo `carto_entreprises`)
 > (catégorie *Scraping & extraction web*). Ce document donne la **stratégie d'escalade**, les **signaux anti-bot**
 > et l'**architecture cible**.
 
@@ -127,7 +127,7 @@ flowchart LR
 ```
 
 Cohérent avec la **cascade d'ingestion** du projet (API → HTML déterministe → IA dernier recours, cf.
-[`structure.md`](../structure.md) §7, [ADR 0009](../adr/0009-ingestion-dlt.md)) et le socle (Dagster, SeaweedFS,
+`structure.md` §7 et ADR 0009 du monorepo `carto_entreprises`) et le socle (Dagster, SeaweedFS,
 PostgreSQL) + la couche **observabilité optionnelle** (OpenTelemetry/Prometheus/Grafana/Tempo/Loki — *à suivre*, couche `03`).
 
 ---
@@ -159,7 +159,7 @@ Cette phase couvrira alors, selon les juridictions visées :
   propagation des suppressions (BODACC), registre des traitements, DPIA, mentions / DPO ;
 - **Droit des bases de données** (droit *sui generis*) et **droit d'auteur** ;
 - **Durcissement sécurité** : secrets, segmentation, egress, journalisation de provenance, localisation des proxies/sous-traitants ;
-- **Activation du registre d'autorisation** ([ADR 0012](../adr/0012-catalogage-registre-sources.md)) comme **gate** (au POC : simple catalogue, non bloquant).
+- **Activation du registre d'autorisation** (ADR 0012 du monorepo `carto_entreprises`) comme **gate** (au POC : simple catalogue, non bloquant).
 
 **Au POC, rien de tout cela n'est actif** : le module `shared/compliance` et `config/sources/registry.yml` existent
 comme **placeholders / catalogue**, non bloquants.
