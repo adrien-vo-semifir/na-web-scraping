@@ -1,0 +1,16 @@
+# Plateforme d'acquisition web — compose (placeholders, cf. docs/00-hub.md §7).
+# Réseau partagé avec le monorepo carto_entreprises : carto_net (externe, possédé par 00_infra).
+name: web-scraping
+
+networks:
+  carto_net:
+    external: true
+
+# Services MVP (à matérialiser — cf. docs/00-hub.md §7) :
+#   acquisition-api            — pilotage et soumission de commandes
+#   acquisition-dispatcher     — producteur de tâches et routage
+#   acquisition-http-worker    — moteur HTTP statique + capture brute
+#   acquisition-browser-worker — moteur rendu navigateur (isolé)
+#   acquisition-storage        — écriture brut, métadonnées, événements
+# Infra partagée : file de messages, base (config + métadonnées), coffre à secrets, stockage objet (SeaweedFS), cache.
+services: {}
