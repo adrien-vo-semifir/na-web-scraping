@@ -1,0 +1,45 @@
+# core/http-fetcher-py — moteur d'acquisition HTTP statique (Python).
+#
+# Projet Python ISOLÉ et autonome (sa propre .venv via `uv sync`). NE réutilise PAS
+# la .venv à la racine du module ni un workspace uv parent ([tool.uv] package = true).
+#
+# Cœur métier — N'IMPORTE JAMAIS le SDK Temporal (cf. docs/structure-projet.md §1).
+# Appelable directement (runner http_fetcher_py.acquire) ET, à terme, via une Activity.
+#
+# Deux transports :
+#   - httpx           : chemin par défaut (N1), HTTP/1.1 + HTTP/2 ;
+#   - curl_cffi       : mode FURTIF (impersonate Chrome : TLS/JA3 + HTTP/2 cohérents)
+#                       pour les cibles protégées.
+
+[project]
+name = "http-fetcher-py"
+version = "0.1.0"
+description = "Moteur d'acquisition HTTP statique (Python) — httpx + curl_cffi furtif, Temporal-free"
+requires-python = ">=3.12"
+dependencies = [
+    # Dernières versions stables (POC = base de production : pas de pré-release).
+    "httpx[http2]>=0.28.1",
+    "curl-cffi>=0.15.0",
+    "pydantic>=2.13.4",
+    # Contrat partagé (acquisition.v1) — paquet local par chemin (cf. [tool.uv.sources]).
+    "acquisition-contracts",
+]
+
+[project.scripts]
+# Runner standalone : `uv run acquire --url <URL> [--furtif]`.
+acquire = "http_fetcher_py.acquire:main"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/http_fetcher_py"]
+
+[tool.uv]
+# Paquet autonome : NE PAS hériter d'un éventuel workspace uv parent (.venv racine).
+package = true
+
+[tool.uv.sources]
+# Le contrat vit dans contracts/gen/python (hors de ce dossier) : dépendance par chemin.
+acquisition-contracts = { path = "../../contracts/gen/python", editable = true }
