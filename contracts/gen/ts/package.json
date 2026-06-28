@@ -1,0 +1,7 @@
+{
+  "name": "@acquisition/contracts-ts",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Types TypeScript generes du contrat d'acquisition (equivalent de contracts/gen/go). Vocabulaire partage, ZERO dependance Temporal.",
+  "type": "module"
+}

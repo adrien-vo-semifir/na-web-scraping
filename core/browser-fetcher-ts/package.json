@@ -1,0 +1,22 @@
+{
+  "name": "browser-fetcher-ts",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Moteur d'acquisition par rendu navigateur (Playwright/Chromium) du module web-scraping. Coeur metier : N'IMPORTE JAMAIS Temporal (cf. docs/structure-projet.md §1).",
+  "type": "module",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "acquire": "tsx src/acquire.ts",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "playwright": "1.61.1"
+  },
+  "devDependencies": {
+    "@types/node": "26.0.1",
+    "tsx": "4.22.4",
+    "typescript": "6.0.3"
+  }
+}
