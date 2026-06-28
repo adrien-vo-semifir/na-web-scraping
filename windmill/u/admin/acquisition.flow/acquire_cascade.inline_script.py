@@ -3,6 +3,10 @@ from urllib.parse import urlparse
 import httpx
 from curl_cffi import requests as creq
 from playwright.sync_api import sync_playwright
+try:
+    import playwright_stealth  # auto-installé par Windmill ; patches stealth (best effort)
+except Exception:
+    playwright_stealth = None
 
 # Étape 1 — CASCADE D'ESCALADE (équivalent du corps de workflow d'acquisition).
 # Rangs N1->N4 (managé N5 = SaaS, hors socle). N1/N2 = fetch réel ; N3/N4 = worker dédié (marqueur).
@@ -11,28 +15,67 @@ KNOWN_PROTECTED = {"datadome.co", "nike.com", "g2.com"}  # policy par domaine (m
 CHALLENGE = ["cf-challenge", "just a moment...", "checking your browser", "attention required",
              "verifying you are human", "datadome", "_incapsula_resource", "px-captcha"]
 
+# --- Config « règles de l'art » ---
+CHROME_UA = ("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
+             "(KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36")
+# N1 : en-têtes COMPLETS et réalistes (pas juste l'UA) — content negotiation + bat les heuristiques « header manquant ».
+N1_HEADERS = {
+    "User-Agent": CHROME_UA,
+    "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8",
+    "Accept-Language": "fr-FR,fr;q=0.9,en-US;q=0.8,en;q=0.7",
+    "Accept-Encoding": "gzip, deflate, br",
+    "sec-ch-ua": '"Chromium";v="131", "Google Chrome";v="131", "Not_A Brand";v="24"',
+    "sec-ch-ua-mobile": "?0", "sec-ch-ua-platform": '"Windows"',
+    "Sec-Fetch-Dest": "document", "Sec-Fetch-Mode": "navigate",
+    "Sec-Fetch-Site": "none", "Sec-Fetch-User": "?1",
+    "Upgrade-Insecure-Requests": "1",
+}
+
+def _apply_stealth(page):
+    # API de playwright-stealth variable selon la version -> robuste, et no-op si absente.
+    if playwright_stealth is None:
+        return
+    if hasattr(playwright_stealth, "stealth_sync"):
+        playwright_stealth.stealth_sync(page)
+    elif hasattr(playwright_stealth, "Stealth"):
+        playwright_stealth.Stealth().apply_stealth_sync(page)
+
 def _fetch(url, rank):
-    ua = "na-web-scraping/0.1 (+acquisition; POC)"
     if rank == "http":
-        with httpx.Client(follow_redirects=True, timeout=30, headers={"User-Agent": ua}) as c:
+        with httpx.Client(follow_redirects=True, timeout=30, headers=N1_HEADERS) as c:
             r = c.get(url)
         return r.status_code, dict(r.headers), (r.text or ""), str(r.http_version)
     if rank == "curl_cffi":
-        r = creq.get(url, impersonate="chrome", timeout=30)
+        # Session (réutilisation cookie/connexion) + impersonate ; on NE force PAS l'UA
+        # (curl_cffi pose UA + en-têtes + ordre cohérents). Réutilisation cross-pages = cache Valkey (à venir).
+        with creq.Session() as s:
+            r = s.get(url, impersonate="chrome", timeout=30)
         return r.status_code, dict(r.headers), (r.text or ""), "curl_cffi(chrome)"
     if rank == "browser":
         cpath = os.environ.get("CHROMIUM_PATH", "/usr/bin/chromium")
         try:
             with sync_playwright() as pw:
-                b = pw.chromium.launch(executable_path=cpath, args=["--no-sandbox",
-                    "--disable-dev-shm-usage", "--disable-gpu", "--single-process", "--no-zygote"])
-                pg = b.new_page(user_agent=ua)
+                # Flags PROPRES : on retire --single-process/--disable-gpu (non-navigateur, détectables)
+                # et on désactive AutomationControlled (supprime navigator.webdriver).
+                b = pw.chromium.launch(executable_path=cpath, args=[
+                    "--no-sandbox", "--disable-dev-shm-usage",
+                    "--disable-blink-features=AutomationControlled"])
+                # Contexte COHÉRENT : UA Chrome réel (plus la string bot), locale/timezone/viewport.
+                ctx = b.new_context(user_agent=CHROME_UA, locale="fr-FR",
+                                    timezone_id="Europe/Paris", viewport={"width": 1920, "height": 1080})
+                ctx.add_init_script("Object.defineProperty(navigator,'webdriver',{get:()=>undefined});"
+                                    "window.chrome=window.chrome||{runtime:{}};")
+                pg = ctx.new_page()
+                try:
+                    _apply_stealth(pg)          # patches complets si la lib est dispo
+                except Exception:
+                    pass                        # sinon on garde les patches manuels ci-dessus
                 resp = pg.goto(url, timeout=30000, wait_until="networkidle")
                 html = pg.content()
                 status = resp.status if resp else 200
                 headers = dict(resp.headers) if resp else {"content-type": "text/html"}
                 b.close()
-            return status, headers, html, "playwright(chromium)"
+            return status, headers, html, "playwright(chromium, stealth)"
         except Exception as e:
             return -1, {}, "", f"browser KO: {e}"
     if rank == "stealth":
