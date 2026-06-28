@@ -108,8 +108,8 @@ var challengeMarkers = []string{
 	"enable javascript and cookies",
 	"_incapsula_resource", // Imperva / Incapsula
 	"distil_r_captcha",    // Distil Networks
-	"px-captcha", // PerimeterX
-	"datadome",   // DataDome
+	"px-captcha",          // PerimeterX
+	"datadome",            // DataDome
 	// NB : "g-recaptcha"/"h-captcha" volontairement EXCLUS — un widget CAPTCHA sur un
 	// formulaire légitime n'est PAS une page de blocage (faux positif observé sur semifir.com).
 }
