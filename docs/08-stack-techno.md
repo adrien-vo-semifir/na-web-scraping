@@ -64,6 +64,31 @@ détaillé (HTTP → empreinte → navigateur → furtif → managé) dans [`str
 - **Extraction (plutôt en aval)** — Trafilatura, newspaper4k, crawl4ai, Firecrawl, ScrapeGraphAI,
   browser-use, Stagehand, Skyvern, Scrapling. *Note d'organisation (cf. §3), pas une contrainte.*
 
+### Cascade de repli par couche (ordre = **coût croissant** ; escalade **si bloqué / incomplet**)
+
+| Couche | N1 — premier essai (le moins cher) | Replis N2 → N3 | Dernier recours |
+|---|---|---|---|
+| Transport HTTP | **httpx** | **curl_cffi** (TLS/JA3 — *furtif dès le transport*) · niquests (HTTP/3) · primp / rnet / tls-client | — |
+| Crawl HTTP | **Scrapy** | Scrapy-Playwright (pont vers JS) · crawlee | — |
+| Navigateur (si JS) | **Playwright** | — | furtif ↓ |
+| **Furtif navigateur** | **Patchright** (Playwright-natif, CDP) | Camoufox (Firefox, fingerprint max) · nodriver (Cloudflare) | managé ↓ |
+| Managé (externalise IP+TLS+nav.+challenges) | — | Zyte · Scrapfly · Bright Data · Oxylabs *(SaaS, hors socle)* | DLQ / revue |
+| CAPTCHA | solveurs locaux (ddddocr, hcaptcha-challenger) | services (CapSolver, 2Captcha) *(SaaS)* | — |
+| Parsing (structure, pour naviguer) | **parsel** · **selectolax** | lxml · BeautifulSoup | — |
+| Extraction de contenu *(aval)* | **Trafilatura** | newspaper4k (news) · readability | IA : crawl4ai |
+| Archivage WARC | **warcio** | — | ArchiveBox (app) |
+
+**Pourquoi « coût croissant » et pas « le plus furtif d'abord » ?** Un navigateur furtif est **lent et lourd**
+(Camoufox ~42 s/page) : le lancer sur **chaque** page — alors que la plupart ne sont pas protégées — exploserait le
+**coût par enregistrement valide** (le vrai KPI, §6 `strategie-anti-bot`). On **n'escalade que si nécessaire**. Trois nuances :
+
+- Le **furtif n'est pas absent au départ** : `curl_cffi` (impersonation TLS/JA3) est un furtif **N2 *cheap***, **avant** tout navigateur.
+- **Entrée adaptative par domaine** : pour un domaine **connu protégé** (Cloudflare / DataDome…), le **routeur de stratégie
+  entre directement** au cran furtif (mémoire / policy par domaine) — il ne re-grimpe pas l'échelle à chaque requête.
+  → « le plus furtif d'abord » est **vrai pour un domaine connu protégé** ; pour un domaine **inconnu**, on sonde **au moins cher**.
+- Le saut est piloté par la **classification de réponse** (soft / hard block, groupe F). Détail outil-par-outil = colonne
+  **« Rang / repli »** du référentiel (`technologies.xlsx`).
+
 ## 5. Lacunes — ce que le référentiel **ne couvre pas**
 
 **À coder (aucun outil dédié)** : anti-SSRF / contrôle d'egress + DNS pinné *(phase pré-production)* · classification
