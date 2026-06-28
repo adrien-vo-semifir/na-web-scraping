@@ -1,4 +1,4 @@
-# 00 — Hub : plateforme d'acquisition de contenu web
+ddd# 00 — Hub : plateforme d'acquisition de contenu web
 
 > **Rôle de ce document** : point d'entrée. Pose l'architecture macro, le diagramme de composants global, la frontière de responsabilité et l'index des fichiers de détail. Logique **macro → micro**.
 > **Scope** : pages web et leur contenu uniquement. Trois moteurs — HTTP statique, rendu navigateur, téléchargement de fichier. **Hors scope** : API REST/GraphQL et flux RSS/Atom/Sitemap (chantiers distincts).

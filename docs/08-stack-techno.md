@@ -21,14 +21,14 @@
 | **Rendu navigateur** | **Playwright** | ✅ Sélectionné | JS/SPA/shadow-DOM/iframes, contextes **éphémères**, capture réseau/HAR. Alt : SeleniumBase, pydoll |
 | **Crawl HTML** | **Scrapy** | ✅ Sélectionné | Ordonnancement, AutoThrottle (respect), file d'URLs ; **Scrapy-Playwright** pour escalader vers le rendu JS |
 | **Plan de contrôle** | **Dagster** | ✅ Sélectionné | Schedules/sensors/retries + replanification (côté monorepo, ADR 0013) |
-| **Pool d'exécution** | **Celery** | ✅ Sélectionné | Workers (sans Beat) — *nécessite un broker* |
-| Broker / cache | **Valkey** | À suivre → **tranché** | Broker Celery + session partagée + cache validateurs ; **fork BSD de Redis** (broker = Valkey, décision utilisateur) |
+| **Moteur interne** (pilotage/distribution/**reprise**) | **Temporal** | À suivre → **tranché** | Durable execution : file, retries, **idempotence + checkpoints/reprise natifs** (groupe H). Workers Python = **activités**. Réutilise Postgres. **Remplace Celery** (cf. feuille `comparatifs`). |
+| Cache / sessions | **Valkey** | À suivre | Cache (validateurs ETag) + sessions partagées. **Plus broker** — Temporal a sa propre persistance. Fork BSD de Redis. |
 | **Store objet** (artefacts) | **SeaweedFS** | ✅ Sélectionné | `raw/` — réponse brute, rendu, snapshot, fichier, échange HTTP |
 | Base (config/méta/dédup) | **PostgreSQL** | ✅ Sélectionné | *en aval (via manifest raw)* — l'acquisition n'écrit pas Postgres directement |
 | Manifest / format | **Parquet** + JSON Pydantic | ✅ Sélectionné | Métadonnées sur SeaweedFS |
 | **Validation tech + contrats** | **Pydantic** (+Pandera) | ✅ Sélectionné | Contrats du fichier 01 ; validation **technique** seule |
 | Détection (côté page) | **BotD** | À suivre | Observer nos signaux d'automatisation → **classifier** et s'adapter |
-| Checkpoints / reprise | **redb** | ✅ Sélectionné | KV embarqué (binding Python à valider) — ou Postgres |
+| Checkpoints / reprise | **Temporal (natif)** | tranché | Reprise **event-sourced** = l'état du workflow (groupe H « gratuit »). redb seulement si store local complémentaire. |
 | Archivage WARC | **warcio** (+ArchiveBox) | À suivre | Sérialiser/rejouer l'échange HTTP |
 | Observabilité | **OpenTelemetry** +Prom/Grafana/Loki/Tempo | À suivre | `correlation_id` bout-en-bout |
 | Hygiène secrets | **Gitleaks** | ✅ Sélectionné | Anti-fuite (≠ coffre) |
@@ -85,7 +85,7 @@ sans secret en clair, fichier 07) relève de la **phase pré-production** (pour 
 2. **Extraction des données métier (le *sens*) : dans le module, ou en aval ?** — l'**analyse de page pour
    naviguer** est, elle, **dans le module** (cf. §3). Pour l'extraction du *sens* (newspaper4k / Scrapling /
    crawl4ai) : au POC c'est **libre** ; reste à fixer où elle vit (module vs futur module *extraction*).
-3. ✅ **Broker tranché : Valkey** (broker Celery + cache + sessions ; fork BSD de Redis).
+3. ✅ **Moteur de pilotage interne tranché : Temporal** (durable execution — file/retries/idempotence/**reprise groupe H** natifs ; remplace Celery). Valkey reste **cache/sessions** (plus broker). Cf. feuille `comparatifs` + ADR module. Discipline : cantonné intra-module (Dagster déclenche, ADR 0013) ; toute I/O dans des **activités** (déterminisme).
 4. ✅ **Briques tranchées** (cf. §5) : hashlib/blake3, filetype/puremagic, charset-normalizer, Hishel, boto3.
 5. ✅ **Client HTTP tranché : httpx « Sélectionné »** (sync+async, HTTP/2) ; aiohttp en alternative haute-charge.
 

@@ -27,10 +27,10 @@
 - Rôle : Plan de contrôle UNIQUE (ADR 0013/0014/0015) : schedules, sensors, triggers, contrôle préalable (règles/quotas/concurrence), retries avec backoff, backpressure. Porte la 'file différée' et la replanification gouvernée de la réaction aux soft blocks (fichier 05). Pas de Beat Celery.
 - Réserve : L'arbre de décision de POLITIQUE (respecter/ralentir/suspendre/arrêter selon qualification) est de la logique métier à coder — Dagster orchestre l'EXÉCUTION, pas la décision (voir lacunes).
 
-### Pool d'exécution des tâches d'acquisition (workers HTTP / rendu / téléchargement)
-- **Choix : Celery** _(Sélectionné)_
-- Rôle : Pool d'exécution scraping UNIQUEMENT (ADR 0013), SANS Beat : parallélisme, routage par capacité, arrêt propre, application du ralentissement/temporisation. Scalable par ajout de workers ; single-node au POC.
-- Réserve : Requiert un broker — aucun n'est 'Sélectionné' au socle (Valkey 'À suivre', voir ci-dessous). Pas de file de tâches Python alternative au référentiel (RQ/Dramatiq absents).
+### Moteur de pilotage / distribution / reprise interne
+- **Choix : Temporal** _(tranché — remplace Celery ; ADR module 0001, feuille `comparatifs`)_
+- Rôle : durable execution : file, retries, **idempotence + checkpoints/reprise natifs** (groupe H). Workers Python = **activités**. Réutilise Postgres. Déclenché par Dagster (ADR 0013) ; toute I/O en activités (déterminisme).
+- Réserve : service à opérer (serveur + DB), **assumé** (POC = base de production). Valkey reste **cache/sessions** (plus broker).
 
 ### Broker de file de tâches / cache / store de session partagé / cache de version (validateurs ETag)
 - **Choix : Valkey** _(À suivre)_
@@ -123,7 +123,7 @@
 - **Isolation OS-level du navigateur (sandbox processus / gVisor / Firejail / conteneur durci)** — AUCUN outil de sandboxing au-delà des contextes éphémères de Playwright. L'isolation repose sur Docker/Compose + profil éphémère ; durcissement à combler en phase pré-production.
 - **Gestionnaire de téléchargement robuste (reprise sur coupure, multi-connexion, checksum intégré) et client/transfert SFTP** — Aucun downloader dédié (aria2/wget/yt-dlp absents) : couvert par défaut via httpx/requests/aiohttp ou FilesPipeline Scrapy, sans brique résiliente. Aucun client SFTP au référentiel (handler 'downloaders' SFTP de CLAUDE.md non outillé).
 - **Masquage/anonymisation runtime des secrets et PII dans les journaux** — Presidio 'En attente' (sécurité/IAM = phase pré-production) ; aucun outil 'Sélectionné'. Sujet pour plus tard (phase pré-production).
-- **Rate limiting / concurrence par source + bus d'événements + coordination distribuée (scale-out)** — Pas d'outil dédié de rate-limit par source (Scrapy AutoThrottle pour le crawl, sémaphores côté Celery+httpx sinon — brique applicative). Aucun bus 'Sélectionné' (NATS À suivre ; Postgres LISTEN/NOTIFY au POC). etcd Refusé : pas de leader-election/locks pour un futur scale-out (lacune assumée, non requise single-node).
+- **Rate limiting / concurrence par source + bus d'événements + coordination distribuée (scale-out)** — Pas d'outil dédié de rate-limit par source (Scrapy AutoThrottle pour le crawl ; sinon sémaphores / Temporal — brique applicative). Aucun bus 'Sélectionné' (NATS À suivre ; Postgres LISTEN/NOTIFY au POC). La coordination distribuée (leader-election/locks) est **portée par Temporal** si besoin ; etcd reste hors besoin de l'architecture actuelle.
 
 ## Anomalies relevées par le garde-fou
 
