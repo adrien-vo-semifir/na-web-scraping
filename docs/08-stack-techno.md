@@ -16,13 +16,13 @@
 
 | Domaine | Choix | État | Rôle |
 |---|---|---|---|
-| **Client HTTP** (cœur) | **httpx** | À suivre | Client unique : sync+async, HTTP/2, streaming (download), en-têtes conditionnels (ETag/304). Alt : aiohttp, requests |
+| **Client HTTP** (cœur) | **httpx** | ✅ Sélectionné | Client unique : sync+async, HTTP/2, streaming (download), en-têtes conditionnels (ETag/304). Alt haute-charge : aiohttp |
 | HTTP/3 | **niquests** | À suivre | Repli compat protocole moderne |
 | **Rendu navigateur** | **Playwright** | ✅ Sélectionné | JS/SPA/shadow-DOM/iframes, contextes **éphémères**, capture réseau/HAR. Alt : SeleniumBase, pydoll |
 | **Crawl HTML** | **Scrapy** | ✅ Sélectionné | Ordonnancement, AutoThrottle (respect), file d'URLs ; **Scrapy-Playwright** pour escalader vers le rendu JS |
 | **Plan de contrôle** | **Dagster** | ✅ Sélectionné | Schedules/sensors/retries + replanification (côté monorepo, ADR 0013) |
 | **Pool d'exécution** | **Celery** | ✅ Sélectionné | Workers (sans Beat) — *nécessite un broker* |
-| Broker / cache | **Valkey** | À suivre | Broker Celery + session partagée + cache validateurs *(à verrouiller, cf. §6)* |
+| Broker / cache | **Valkey** | À suivre → **tranché** | Broker Celery + session partagée + cache validateurs ; **fork BSD de Redis** (broker = Valkey, décision utilisateur) |
 | **Store objet** (artefacts) | **SeaweedFS** | ✅ Sélectionné | `raw/` — réponse brute, rendu, snapshot, fichier, échange HTTP |
 | Base (config/méta/dédup) | **PostgreSQL** | ✅ Sélectionné | *en aval (via manifest raw)* — l'acquisition n'écrit pas Postgres directement |
 | Manifest / format | **Parquet** + JSON Pydantic | ✅ Sélectionné | Métadonnées sur SeaweedFS |
@@ -33,11 +33,12 @@
 | Observabilité | **OpenTelemetry** +Prom/Grafana/Loki/Tempo | À suivre | `correlation_id` bout-en-bout |
 | Hygiène secrets | **Gitleaks** | ✅ Sélectionné | Anti-fuite (≠ coffre) |
 
-## 3. Navigation/parcours et extraction
+## 3. Analyser la page pour naviguer ≠ extraire le sens
 
-Naviguer intelligemment (suivre les bons liens, paginer, **recurser**) relève de l'acquisition — c'est
-le groupe **A2** (contrôleur de parcours) + groupe **E** (navigation, **E6** « découverte par **score** »).
-Repère d'organisation (l'extraction métier vit plutôt en aval, **non imposé** au POC) :
+**Analyser une page pour y naviguer** (trouver les liens, la pagination, le « suivant », décider la page
+suivante, **recurser**) **fait partie du scraping** — c'est **dans le module** (groupe **A2** contrôleur de
+parcours + groupe **E** navigation, **E6** « découverte par score »). Ce **n'est pas** de l'« extraction
+métier ». À distinguer :
 
 | Lire la **STRUCTURE** | Interpréter le **SENS** (plutôt en aval) |
 |---|---|
@@ -50,9 +51,10 @@ Une navigation « intelligente » qui s'appuie sur le **sens d'une page** (LLM) 
 2. **Navigation assistée LLM** → soit un composant de scoring lisant les métadonnées de lien, soit
    renvoyée en aval (la couche extraction décide quoi re-crawler).
 
-## 4. Cascade d'évasion — disponible au POC
+## 4. Cascade d'escalade anti-bot — disponible au POC
 
-Cascade complète **disponible** au POC (sécurité, légalité et RGPD → phase pré-production) :
+Cascade complète **disponible** au POC (sécurité / légalité / RGPD → phase pré-production). Ordre d'escalade
+détaillé (HTTP → empreinte → navigateur → furtif → managé) dans [`strategie-anti-bot.md`](strategie-anti-bot.md) :
 
 - **Furtif / anti-détection** — Camoufox, nodriver, Patchright, **playwright-stealth**, undetected-chromedriver,
   zendriver, botasaurus, CloakBrowser ; + **SeleniumBase « CDP Mode »** et **pydoll « humanize »**.
@@ -69,9 +71,9 @@ du **block subi** (soft/hard, fichier 05) · **moteur de politique** de réactio
 (bail/DLQ) · circuit-breaker/backoff · anti-zip-bomb/quarantaine · mapping **WARC→`HttpExchange`** (les outils WARC
 n'écrivent pas le contrat du fichier 01).
 
-**Briques à acter (absentes du référentiel)** : hash (hashlib/**blake3**) · sniffing **MIME**+**charset**
-(python-magic, charset-normalizer) · **cache HTTP conditionnel** (Hishel) · **client S3** (boto3/OpenDAL) pour
-écrire dans SeaweedFS.
+**✅ Briques tranchées** (ajoutées **À suivre** au référentiel — feuille `web-scraping`) : empreinte/dédup
+**hashlib (SHA-256)** *(alt blake3)* · sniffing MIME **filetype/puremagic** · charset **charset-normalizer** ·
+cache HTTP conditionnel **Hishel** · client S3 **boto3** *(alt aioboto3 async / OpenDAL)* pour écrire dans SeaweedFS.
 
 **Coffre à secrets** : Vault/OpenBao/SOPS sont **« En attente »**. La sécurité (dont le coffre et les checkpoints
 sans secret en clair, fichier 07) relève de la **phase pré-production** (pour plus tard), pas du POC.
@@ -80,11 +82,11 @@ sans secret en clair, fichier 07) relève de la **phase pré-production** (pour 
 
 1. **Promouvoir `httpx` « Sélectionné » ?** Aucun client HTTP n'est acté (tous « À suivre ») alors que c'est la
    brique la plus fondamentale du module.
-2. **`newspaper4k` / `Scrapling`** sont « Sélectionné » : relèvent plutôt de l'**extraction** (cf. §3) —
-   à rattacher au futur module *extraction* ou à web-scraping selon le découpage retenu (**décision utilisateur**).
-3. **Outils d'évasion en « À suivre »** (Patchright, zendriver, botasaurus, cloudscraper, FlareSolverr…) :
-   recommandables par les règles normales du référentiel et **disponibles au POC** (cf. §4).
-4. **Verrouiller le broker** (Valkey ou autre) : dépendance vitale de Celery, aujourd'hui « À suivre ».
+2. **Extraction des données métier (le *sens*) : dans le module, ou en aval ?** — l'**analyse de page pour
+   naviguer** est, elle, **dans le module** (cf. §3). Pour l'extraction du *sens* (newspaper4k / Scrapling /
+   crawl4ai) : au POC c'est **libre** ; reste à fixer où elle vit (module vs futur module *extraction*).
+3. ✅ **Broker tranché : Valkey** (broker Celery + cache + sessions ; fork BSD de Redis).
+4. ✅ **Briques tranchées** (cf. §5) : hashlib/blake3, filetype/puremagic, charset-normalizer, Hishel, boto3.
+5. ✅ **Client HTTP tranché : httpx « Sélectionné »** (sync+async, HTTP/2) ; aiohttp en alternative haute-charge.
 
-> Détail besoin-par-besoin (alternatives, raisons d'exclusion, par cluster de modules) : analyse multi-agents
-> du 2026-06-28, conservée hors-repo.
+> Détail besoin-par-besoin (alternatives par cluster de modules) : analyse multi-agents du 2026-06-28, hors-repo.
