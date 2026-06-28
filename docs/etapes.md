@@ -13,7 +13,7 @@
 - [x] Repo `na-web-scraping` créé, poussé, monté en **submodule** (`modules/web-scraping/`).
 - [x] Blueprint complet (`00-hub` → `07`, contrats, stratégie, audit) + `08-stack-techno`.
 - [x] Squelette `src/web_scraping/` (paquets par groupe A–J), `pyproject.toml`, `docker-compose.yml`, `.gitignore`, `tests/`.
-- [x] Stack tranchée : **httpx**, Playwright, Scrapy, **Temporal** (moteur durable) + PostgreSQL + Valkey (cache/sessions), SeaweedFS, Pydantic, warcio, OpenTelemetry, briques (hashlib/blake3, filetype, charset-normalizer, Hishel, boto3). *(Temporal remplace Celery — ADR module 0001.)*
+- [x] Stack tranchée : **httpx**, Playwright, Scrapy, **Temporal** (moteur durable) + PostgreSQL + Valkey (cache/sessions), Ceph RGW, Pydantic, warcio, OpenTelemetry, briques (hashlib/blake3, filetype, charset-normalizer, Hishel, boto3). *(Temporal remplace Celery — ADR module 0001.)*
 
 ---
 
@@ -26,13 +26,13 @@ Les phases forment un **graphe de dépendances** (pas une simple liste) : on peu
 flowchart TB
     P0["P0 · Socle &amp; outillage"]
     P1["P1 · Contrats + convention raw"]
-    P2["P2 · Stores + moteur<br/>S3/SeaweedFS · Postgres · Temporal"]
+    P2["P2 · Stores + moteur<br/>S3/Ceph RGW · Postgres · Temporal"]
     P3["P3 · Session &amp; réseau"]
     P4["P4 · Moteurs<br/>HTTP · navigateur · fichier · capture HttpExchange"]
     P5["P5 · Navigation<br/>SPA · score de liens"]
     P6["P6 · Pilotage &amp; distribution<br/>API · dispatcher · file"]
     P7["P7 · Protections &amp; réaction<br/>détection · cascade"]
-    P8["P8 · Validation &amp; artefacts<br/>→ sorties SeaweedFS"]
+    P8["P8 · Validation &amp; artefacts<br/>→ sorties Ceph RGW"]
     P9["P9 · Persistance &amp; reprise<br/>checkpoints"]
     P10["P10 · Sécurité d'exécution<br/>isolation · quarantaine"]
     P11["P11 · Exploitation<br/>observabilité · tests/replay"]
@@ -94,14 +94,14 @@ Branches **parallélisables** une fois P2/P4 en place : P5 (navigation), P7 (pro
 | [ ] | Modèles `AcquisitionCommand` / `AcquisitionResult` / `Artifact` / `HttpExchange` / `Checkpoint` | Pydantic | Phase 0 | **MVP** |
 | [ ] | Identifiants & idempotence (`acquisition_id` dérivé de `resource_id`+`configuration_version`) | Pydantic | contrats | **MVP** |
 | [ ] | États finaux normalisés (`SUCCESS`/`UNCHANGED`/`RETRYABLE`/`PERMANENT`/`BLOCKED`) | Python | contrats | **MVP** |
-| [ ] | **Convention de clé / manifest raw** → SeaweedFS (contrat de sortie vers le monorepo, ADR 0021/0007) | — | contrats | **MVP** |
+| [ ] | **Convention de clé / manifest raw** → Ceph RGW (contrat de sortie vers le monorepo, ADR 0021/0007) | — | contrats | **MVP** |
 | [ ] | Validation des contrats (tests) | pytest | contrats | V1 |
 
 ## Phase 2 — Plomberie & stores (`platform`)
 
 | ✓ | Étape / livrable | Techno | Dépend de | Priorité |
 |---|---|---|---|---|
-| [ ] | Client objet S3 → **SeaweedFS** (`raw/` : artefacts + HttpExchange) | boto3 | P1 (clé/manifest) | **MVP** |
+| [ ] | Client objet S3 → **Ceph RGW** (`raw/` : artefacts + HttpExchange) | boto3 | P1 (clé/manifest) | **MVP** |
 | [ ] | Base métadonnées (config sources, index dédup par empreinte, observations) | PostgreSQL | P1 | **MVP** |
 | [ ] | **Temporal** : serveur + workers Python (**activités**) ; file / retries / idempotence / checkpoints **natifs** | Temporal | P0, P1 | **MVP** |
 | [ ] | Hash / empreinte de contenu | hashlib (blake3) | — | **MVP** |
@@ -123,7 +123,7 @@ Branches **parallélisables** une fois P2/P4 en place : P5 (navigation), P7 (pro
 | [ ] | **Worker HTTP statique** (requête, redirections, `raw_response`) | httpx | P2, P3 | **MVP** |
 | [ ] | **Worker rendu navigateur** (JS, document vivant, `rendered_document`/`page_snapshot`) | Playwright | P2 | **MVP** |
 | [ ] | Worker **téléchargement de fichier** (`downloaded_file`, contrôle taille/type) | httpx | P2 | **MVP** |
-| [ ] | **Capture HTTP brute** (`HttpExchange` req/resp + timings) → SeaweedFS | httpx/Playwright (HAR) | P1, P2 | **MVP** |
+| [ ] | **Capture HTTP brute** (`HttpExchange` req/resp + timings) → Ceph RGW | httpx/Playwright (HAR) | P1, P2 | **MVP** |
 | [ ] | Sélection du mode (statique → navigateur, escalade de coût) | code | moteurs | V1 |
 | [ ] | Socle de crawl HTTP (ordonnancement, AutoThrottle, file d'URLs) | Scrapy (+Scrapy-Playwright) | moteurs | V1 |
 
@@ -165,7 +165,7 @@ Branches **parallélisables** une fois P2/P4 en place : P5 (navigation), P7 (pro
 | [ ] | Validation **technique** (statut, type, taille, encodage, intégrité, empreinte) | Pydantic + filetype + charset-normalizer | P1 | **MVP** |
 | [ ] | Cache conditionnel (ETag / If-Modified-Since, détection 304) | Hishel | P3 | V1 |
 | [ ] | Déduplication par empreinte **+ observation toujours enregistrée** (hub §6) | hashlib + Postgres | P2 | **MVP** |
-| [ ] | Sorties → SeaweedFS (`raw_response`/`rendered_document`/`page_snapshot`/`downloaded_file`/`HttpExchange`) | boto3 | P2, P4 | **MVP** |
+| [ ] | Sorties → Ceph RGW (`raw_response`/`rendered_document`/`page_snapshot`/`downloaded_file`/`HttpExchange`) | boto3 | P2, P4 | **MVP** |
 | [ ] | Archivage **WARC** + mapping WARC → `HttpExchange` (à coder) | warcio | P4 | V1 |
 
 ## Phase 9 — Persistance & reprise (groupe H)
@@ -211,7 +211,7 @@ Branches **parallélisables** une fois P2/P4 en place : P5 (navigation), P7 (pro
 
 ## Jalon MVP (hub §7) — chemin critique
 
-**Socle (P0)** → **Contrats + convention raw (P1)** → **Stores + moteur : S3/SeaweedFS, Postgres, Temporal (P2)** →
+**Socle (P0)** → **Contrats + convention raw (P1)** → **Stores + moteur : S3/Ceph RGW, Postgres, Temporal (P2)** →
 **Worker HTTP + Worker navigateur + capture HttpExchange (P4)** → **Validation technique + dédup + sorties (P8)** →
 **API + dispatcher (P6)** → **Lecture du raw par `02_transform` (P12)**.
 

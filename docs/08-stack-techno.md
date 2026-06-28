@@ -23,9 +23,9 @@
 | **Plan de contrôle** | **Dagster** | ✅ Sélectionné | Schedules/sensors/retries + replanification (côté monorepo, ADR 0013) |
 | **Moteur interne** (pilotage/distribution/**reprise**) | **Temporal** | À suivre → **tranché** | Durable execution : file, retries, **idempotence + checkpoints/reprise natifs** (groupe H). Workers Python = **activités**. Réutilise Postgres. **Remplace Celery** (cf. feuille `comparatifs`). |
 | Cache / sessions | **Valkey** | À suivre | Cache (validateurs ETag) + sessions partagées. **Plus broker** — Temporal a sa propre persistance. Fork BSD de Redis. |
-| **Store objet** (artefacts) | **SeaweedFS** | ✅ Sélectionné | `raw/` — réponse brute, rendu, snapshot, fichier, échange HTTP |
+| **Store objet** (artefacts) | **Ceph RGW** | ✅ Sélectionné | `raw/` — réponse brute, rendu, snapshot, fichier, échange HTTP |
 | Base (config/méta/dédup) | **PostgreSQL** | ✅ Sélectionné | *en aval (via manifest raw)* — l'acquisition n'écrit pas Postgres directement |
-| Manifest / format | **Parquet** + JSON Pydantic | ✅ Sélectionné | Métadonnées sur SeaweedFS |
+| Manifest / format | **Parquet** + JSON Pydantic | ✅ Sélectionné | Métadonnées sur Ceph RGW |
 | **Validation tech + contrats** | **Pydantic** (+Pandera) | ✅ Sélectionné | Contrats du fichier 01 ; validation **technique** seule |
 | Détection (côté page) | **BotD** | À suivre | Observer nos signaux d'automatisation → **classifier** et s'adapter |
 | Checkpoints / reprise | **Temporal (natif)** | tranché | Reprise **event-sourced** = l'état du workflow (groupe H « gratuit »). redb seulement si store local complémentaire. |
@@ -73,7 +73,7 @@ n'écrivent pas le contrat du fichier 01).
 
 **✅ Briques tranchées** (ajoutées **À suivre** au référentiel — feuille `web-scraping`) : empreinte/dédup
 **hashlib (SHA-256)** *(alt blake3)* · sniffing MIME **filetype/puremagic** · charset **charset-normalizer** ·
-cache HTTP conditionnel **Hishel** · client S3 **boto3** *(alt aioboto3 async / OpenDAL)* pour écrire dans SeaweedFS.
+cache HTTP conditionnel **Hishel** · client S3 **boto3** *(alt aioboto3 async / OpenDAL)* pour écrire dans Ceph RGW.
 
 **Coffre à secrets** : Vault/OpenBao/SOPS sont **« En attente »**. La sécurité (dont le coffre et les checkpoints
 sans secret en clair, fichier 07) relève de la **phase pré-production** (pour plus tard), pas du POC.

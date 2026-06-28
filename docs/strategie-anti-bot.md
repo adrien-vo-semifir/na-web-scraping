@@ -115,7 +115,7 @@ flowchart LR
     CLASS -->|Bloqué / incomplet| ROUTER
     CLASS -->|Refus permanent| DLQ[DLQ / revue humaine]
     EXTRACT --> VALID[Validation Pydantic / Pandera]
-    VALID --> RAW[(SeaweedFS — raw HTML/WARC)]
+    VALID --> RAW[(Ceph RGW — raw HTML/WARC)]
     VALID --> PG[(PostgreSQL — curated)]
     ROUTER --> OBS[OpenTelemetry]
     CLASS --> OBS
@@ -125,7 +125,7 @@ flowchart LR
 ```
 
 Cohérent avec la **cascade d'ingestion** du projet (API → HTML déterministe → IA dernier recours, cf.
-`structure.md` §7 et ADR 0009 du monorepo `carto_entreprises`) et le socle (Dagster, SeaweedFS,
+`structure.md` §7 et ADR 0009 du monorepo `carto_entreprises`) et le socle (Dagster, Ceph RGW,
 PostgreSQL) + la couche **observabilité optionnelle** (OpenTelemetry/Prometheus/Grafana/Tempo/Loki — *à suivre*, couche `03`).
 
 ---

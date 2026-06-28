@@ -38,18 +38,18 @@
 - Réserve : 'À suivre', pas verrouillé — choix à acter par l'utilisateur. Au POC single-node, un cookie-jar fichier ou PostgreSQL suffit. Broker simple : pas de garanties durables natives (bail/DLQ — voir lacunes). NE PAS choisir Redis (Refusé) ni Scrapy-Redis (En attente).
 
 ### Store objet des artefacts bruts (réponse brute, document rendu, snapshot, fichier, échanges HTTP) → raw/
-- **Choix : SeaweedFS** _(Sélectionné)_
-- Rôle : Store objet S3 cible verrouillé (ADR 0007, frontière CLAUDE.md : 01_ingest ne produit QUE du raw déposé en SeaweedFS). Porte tous les fichiers du lac (raw/staging/curated/...) et les documents probants. Repli plus léger : Garage (À suivre).
+- **Choix : Ceph RGW** _(Sélectionné)_
+- Rôle : Store objet S3 cible verrouillé (ADR 0007, frontière CLAUDE.md : 01_ingest ne produit QUE du raw déposé en Ceph RGW). Porte tous les fichiers du lac (raw/staging/curated/...) et les documents probants. Repli plus léger : Garage (À suivre).
 - Réserve : Versioning/lifecycle S3 à valider (ADR 0007). AUCUN client S3 Python concret n'est au référentiel (boto3/s3fs/minio-py absents) — seul OpenDAL (À suivre) approche ; un client S3 reste à acter (voir lacunes). NE PAS choisir MinIO (À suivre, AGPL gênant, édition communautaire archivée).
 
 ### Base relationnelle (config des sources, métadonnées, dédup par empreinte, observations, boucle de retour)
 - **Choix : PostgreSQL** _(Sélectionné)_
 - Rôle : Source de vérité ACID du socle en aval : config des sources, index dédup (hash→artifact_id + unicité), observations d'acquisition (toujours enregistrées, jamais dédupliquées — hub §6), traçabilité. JSONB pour le semi-structuré. Peut porter file/checkpoints façon Hatchet/DBOS sans broker externe.
-- Réserve : FRONTIÈRE DE COUCHE : le module acquisition (01_ingest) ne se connecte PAS à Postgres — il écrit ses métadonnées dans le MANIFEST RAW (SeaweedFS) ; c'est 02_transform qui persiste dans le schéma audit. Postgres est donc la cible aval, pas l'écriture directe du collecteur.
+- Réserve : FRONTIÈRE DE COUCHE : le module acquisition (01_ingest) ne se connecte PAS à Postgres — il écrit ses métadonnées dans le MANIFEST RAW (Ceph RGW) ; c'est 02_transform qui persiste dans le schéma audit. Postgres est donc la cible aval, pas l'écriture directe du collecteur.
 
-### Sérialisation des métadonnées / manifest d'acquisition (format fichier sur SeaweedFS)
+### Sérialisation des métadonnées / manifest d'acquisition (format fichier sur Ceph RGW)
 - **Choix : Apache Parquet** _(Sélectionné)_
-- Rôle : Format colonnaire cible (ADR 0007/0008) pour les métadonnées/manifests en lot déposés sur SeaweedFS. Avro (À suivre) si échange ligne-à-ligne schématisé ; manifests unitaires JSON sérialisés par Pydantic.
+- Rôle : Format colonnaire cible (ADR 0007/0008) pour les métadonnées/manifests en lot déposés sur Ceph RGW. Avro (À suivre) si échange ligne-à-ligne schématisé ; manifests unitaires JSON sérialisés par Pydantic.
 - Réserve : Aucune.
 
 ### Validation technique minimale (statut/type/taille/encodage/intégrité/empreinte) + contrat de modèle
@@ -75,7 +75,7 @@
 ### Archivage WARC de l'échange HTTP brut (req/resp) — matérialisation et replay sans rappeler la source
 - **Choix : warcio** _(À suivre)_
 - Rôle : Lib Apache de lecture/écriture WARC : brique la plus directe pour sérialiser l'échange HTTP brut en .warc.gz depuis les handlers d'acquisition, et le rejouer pour les tests de non-régression (fichier 07 §7) sans réécrire la cascade. ArchiveBox (Sélectionné, MIT) pour l'archivage probant multi-format (Kbis/statuts → HTML/PDF/PNG/WARC + index).
-- Réserve : warcio écrit du WARC, PAS le modèle HttpExchange propre du blueprint : le mapping WARC→HttpExchange + dépôt SeaweedFS raw/ reste à coder (voir lacunes). warcprox/pywb (En attente, GPL) = réserve licence à valider avant produit.
+- Réserve : warcio écrit du WARC, PAS le modèle HttpExchange propre du blueprint : le mapping WARC→HttpExchange + dépôt Ceph RGW raw/ reste à coder (voir lacunes). warcprox/pywb (En attente, GPL) = réserve licence à valider avant produit.
 
 ### Observabilité (correlation_id de bout en bout, métriques par stratégie, traces, journaux, alertes)
 - **Choix : OpenTelemetry** _(À suivre)_
@@ -104,17 +104,17 @@
 - **FlareSolverr / cloudscraper** — Contournement de challenge Cloudflare/anti-bot. 'À suivre' au référentiel — disponibles au POC.
 - **Trafilatura / newspaper4k / jusText / python-readability / readability / MarkItDown / Resiliparse / crawl4ai / Firecrawl / ScrapeGraphAI** — Extraction métier / interprétation du sens. L'extraction métier vit plutôt en aval (note neutre). NB états : newspaper4k 'Sélectionné', crawl4ai/Trafilatura 'À suivre', Firecrawl 'Refusé'.
 - **browser-use / Stagehand / Skyvern / Scrapling** — Agents LLM d'extraction / découverte d'actions par IA — relèvent de l'IA produit ; l'extraction métier vit plutôt en aval (note neutre). Le scoring d'actions sans sélecteur (§11) peut s'appuyer sur les locators Playwright. NB état : Scrapling 'Sélectionné'.
-- **Selenium / Puppeteer / pycurl / Crawlee / Redis / etcd / MinIO (cible) / Scrapy-Redis** — Refusé au référentiel (Selenium, Puppeteer, pycurl, Crawlee, Redis, etcd) ou évincés par doublon/licence : à ne jamais recommander. MinIO 'À suivre' mais évincé (AGPL gênant, communauté archivée) au profit de SeaweedFS ; Scrapy-Redis 'En attente', peu utile au POC.
+- **Selenium / Puppeteer / pycurl / Crawlee / Redis / etcd / MinIO (cible) / Scrapy-Redis** — Refusé au référentiel (Selenium, Puppeteer, pycurl, Crawlee, Redis, etcd) ou évincés par doublon/licence : à ne jamais recommander. MinIO 'À suivre' mais évincé (AGPL gênant, communauté archivée) au profit de Ceph RGW ; Scrapy-Redis 'En attente', peu utile au POC.
 
 ## Lacunes (non couvert par le référentiel)
 
-- **Modèle de capture 'HttpExchange' natif (req/resp brut + timings + contexte réseau) + dépôt SeaweedFS raw/** — Aucun outil ne produit le format HttpExchange du blueprint : warcprox/warcio/pywb écrivent du WARC. Le mapping WARC→HttpExchange et le dépôt raw/ sont à coder. De plus aucun capteur HTTP brut n'est 'Sélectionné' (warcprox/pywb 'En attente', GPL).
+- **Modèle de capture 'HttpExchange' natif (req/resp brut + timings + contexte réseau) + dépôt Ceph RGW raw/** — Aucun outil ne produit le format HttpExchange du blueprint : warcprox/warcio/pywb écrivent du WARC. Le mapping WARC→HttpExchange et le dépôt raw/ sont à coder. De plus aucun capteur HTTP brut n'est 'Sélectionné' (warcprox/pywb 'En attente', GPL).
 - **Coffre à secrets (résolution d'identifiants, re-résolution à la reprise, masquage des journaux)** — TOUS les coffres sont 'En attente' (OpenBao, Vault, Infisical, SOPS — sécurité/IAM = phase pré-production). Au POC : variables d'environnement / fichiers Compose. Gitleaks détecte mais ne stocke pas.
 - **Contrôle des sorties (egress) / anti-SSRF / DNS pin-né anti-rebinding** — Point de sécurité = phase pré-production : aucun outil ne filtre les adresses résolues (plages privées/loopback/link-local, métadonnées cloud 169.254.169.254), allowlist domaines/réseaux, ni revalidation après redirection. Pas de résolveur DNS dédié pour résoudre→valider l'IP→connecter sur cette IP. À traiter le moment venu au-dessus du client HTTP (CrowdSec/WAF protègent NOTRE site, pas les sorties).
 - **Bibliothèque de hachage / empreinte de contenu (dédup, validation technique)** — Brique CENTRALE absente : aucun hash au référentiel (hashlib non explicité, blake3/xxhash absents). hashlib SHA-256 (stdlib) couvre sans dépendance ; ajouter blake3/xxhash si dédup haute vitesse requise.
 - **Détection de type de contenu (MIME par magic numbers) et de charset/encodage** — Aucun outil de sniffing : python-magic/puremagic/filetype absents (type réel), chardet/charset-normalizer/cchardet absents (charset). Au-delà du Content-Type HTTP déclaré et de l'encodage exposé par lxml/selectolax, la vérification technique réelle n'est pas outillée.
 - **Cache HTTP conditionnel clé-en-main (politique de fraîcheur, expiration, invalidation, store des validateurs)** — Aucune lib de cache HTTP (Hishel/CacheControl/requests-cache absents). httpx émet les en-têtes conditionnels mais toute la politique est à coder (le store des validateurs peut aller dans Valkey/Postgres).
-- **Client S3 / couche d'accès au stockage objet pour écrire dans SeaweedFS raw/** — Aucun client S3 Python concret (boto3/s3fs/minio-py absents) ; seul OpenDAL (À suivre) approche l'abstraction. Un client S3 concret reste à acter pour matérialiser les sorties.
+- **Client S3 / couche d'accès au stockage objet pour écrire dans Ceph RGW raw/** — Aucun client S3 Python concret (boto3/s3fs/minio-py absents) ; seul OpenDAL (À suivre) approche l'abstraction. Un client S3 concret reste à acter pour matérialiser les sorties.
 - **Classification du BLOCK SUBI en sortie (soft vs hard : refus persistant, IP bloquée, contenu incomplet, throttling vs lenteur) + niveau de confiance + cause alternative** — Pas d'outil dédié à la classification 'côté client sortant' (fichier 05 §2/§3) : CrowdSec détecte des attaquants ENTRANTS. Détecteur/qualificateur à CODER au-dessus des briques honnêtes (httpx/Playwright).
 - **Moteur de POLITIQUE de réaction gouvernée (respecter/ralentir/replanifier/suspendre/arrêter/escalader selon qualification)** — Logique métier de décision non portée par aucun outil (OPA/Cerbos 'En attente', conçus pour l'autorisation applicative). Dagster orchestre l'EXÉCUTION, l'arbre de politique reste à coder (fichier 05 §4).
 - **Machine d'état du cycle de vie (Created→Validated→…→Published, §3) + file de tâches DURABLE (réservation/bail TTL, ack, file différée+backoff, DLQ, backpressure)** — Aucune state-machine au référentiel (transitions/python-statemachine absents) → Pydantic + table de transitions Postgres. Le socle n'offre qu'un broker (Valkey) + un pool (Celery), pas une file durable (pgmq/RabbitMQ/SQS-like) : garanties bail/DLQ/réconciliation à construire ou via moteur durable (Temporal/Hatchet/DBOS — tous À suivre/En attente).

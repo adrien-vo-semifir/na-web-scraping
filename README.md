@@ -5,10 +5,10 @@ Module **autonome** (submodule de `carto_entreprises`, monté en `modules/web-sc
 ## Rôle
 
 Acquérir des **pages web** (HTTP statique, rendu navigateur) et les **fichiers liés**, et produire des
-**artefacts bruts + métadonnées techniques + échanges HTTP** déposés dans **SeaweedFS** (`raw/`).
+**artefacts bruts + métadonnées techniques + échanges HTTP** déposés dans **Ceph RGW** (`raw/`).
 
 - **Acquisition** — l'extraction métier vit plutôt en aval (côté monorepo).
-- **Couplage** au monorepo = **contrat raw uniquement** (convention de clé/manifest SeaweedFS). Aucun import du monorepo.
+- **Couplage** au monorepo = **contrat raw uniquement** (convention de clé/manifest Ceph RGW). Aucun import du monorepo.
 
 ## Documentation
 
