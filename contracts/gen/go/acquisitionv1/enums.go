@@ -110,6 +110,46 @@ func (k ArtifactKind) MarshalJSON() ([]byte, error) {
 	return []byte(strconv.Quote(k.String())), nil
 }
 
+// unmarshalEnumJSON décode un enum depuis sa forme nominale ("STATIC") OU numérique (1),
+// symétrique de MarshalJSON. Indispensable au round-trip JSON des payloads — notamment
+// l'entrée de Workflow Temporal sérialisée puis désérialisée par le data converter.
+func unmarshalEnumJSON[E ~int32](data []byte, names map[E]string, dst *E, typ string) error {
+	s := string(data)
+	if s == "null" {
+		return nil // conserve la valeur zéro (UNSPECIFIED)
+	}
+	if n, err := strconv.Atoi(s); err == nil { // forme numérique proto3
+		*dst = E(n)
+		return nil
+	}
+	name, err := strconv.Unquote(s) // forme nominale "STATIC"
+	if err != nil {
+		return fmt.Errorf("%s: JSON invalide %s: %w", typ, s, err)
+	}
+	for v, n := range names {
+		if n == name {
+			*dst = v
+			return nil
+		}
+	}
+	return fmt.Errorf("%s: valeur d'enum inconnue %q", typ, name)
+}
+
+// UnmarshalJSON — symétrique de MarshalJSON (forme nominale ou numérique).
+func (m *AcquisitionMode) UnmarshalJSON(data []byte) error {
+	return unmarshalEnumJSON(data, acquisitionModeNames, m, "AcquisitionMode")
+}
+
+// UnmarshalJSON — symétrique de MarshalJSON (forme nominale ou numérique).
+func (s *FinalState) UnmarshalJSON(data []byte) error {
+	return unmarshalEnumJSON(data, finalStateNames, s, "FinalState")
+}
+
+// UnmarshalJSON — symétrique de MarshalJSON (forme nominale ou numérique).
+func (k *ArtifactKind) UnmarshalJSON(data []byte) error {
+	return unmarshalEnumJSON(data, artifactKindNames, k, "ArtifactKind")
+}
+
 // Verify interface satisfaction at compile time.
 var (
 	_ fmt.Stringer = AcquisitionMode(0)

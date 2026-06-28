@@ -30,7 +30,7 @@ services:
       retries: 5
 
   temporal:
-    image: temporalio/auto-setup:${TEMPORAL_VERSION:-1.28.0}
+    image: temporalio/auto-setup:${TEMPORAL_VERSION:-1.29.7}
     restart: unless-stopped
     depends_on:
       postgres: { condition: service_healthy }
@@ -44,7 +44,7 @@ services:
     ports: ["${TEMPORAL_PORT:-7233}:7233"]
 
   temporal-ui:
-    image: temporalio/ui:${TEMPORAL_UI_VERSION:-2.34.0}
+    image: temporalio/ui:${TEMPORAL_UI_VERSION:-2.51.1}
     restart: unless-stopped
     depends_on: [temporal]
     environment:
