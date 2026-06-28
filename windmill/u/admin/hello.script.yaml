@@ -1,0 +1,12 @@
+summary: Hello (script Python)
+description: Script de démonstration.
+lock: '!inline u/admin/hello.script.lock'
+kind: script
+schema:
+  $schema: https://json-schema.org/draft/2020-12/schema
+  type: object
+  properties:
+    name:
+      type: string
+      default: Windmill
+  required: []

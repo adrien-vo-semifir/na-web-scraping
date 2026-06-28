@@ -1,0 +1,81 @@
+summary: Crawl — pipeline conditionnel (site | liste) -> acquisition
+description: Branche site (mini-crawl liens) ou liste (seeds), puis fan-out
+  parallèle appelant la cascade d'escalade u/admin/acquisition par URL.
+value:
+  modules:
+    - id: prepare
+      value:
+        type: rawscript
+        content: '!inline prepare.inline_script.py'
+        input_transforms:
+          kind:
+            type: javascript
+            expr: flow_input.kind
+          max_links:
+            type: javascript
+            expr: flow_input.max_links
+          site:
+            type: javascript
+            expr: flow_input.site
+          urls:
+            type: javascript
+            expr: flow_input.urls
+        lock: '!inline prepare.inline_script.lock'
+        language: python3
+    - id: loop
+      value:
+        type: forloopflow
+        modules:
+          - id: acq
+            value:
+              type: flow
+              input_transforms:
+                configuration_version:
+                  type: static
+                  value: v1
+                dataset:
+                  type: static
+                  value: pages
+                entry_rank:
+                  type: static
+                  value: auto
+                max_rank:
+                  type: static
+                  value: stealth
+                source:
+                  type: static
+                  value: web
+                url:
+                  type: javascript
+                  expr: flow_input.iter.value
+              path: u/admin/acquisition
+        iterator:
+          type: javascript
+          expr: results.prepare.urls
+        parallel: true
+        parallelism:
+          type: static
+          value: 3
+        skip_failures: true
+schema:
+  $schema: https://json-schema.org/draft/2020-12/schema
+  type: object
+  properties:
+    kind:
+      type: string
+      default: list
+      enum:
+        - list
+        - site
+    max_links:
+      type: integer
+      default: 5
+    site:
+      type: string
+      default: ''
+    urls:
+      type: array
+      default: []
+      items:
+        type: string
+  required: []

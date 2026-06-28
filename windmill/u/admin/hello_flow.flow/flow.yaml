@@ -1,0 +1,32 @@
+summary: Hello flow (2 étapes)
+description: 'Flow de démonstration : étape 1 -> étape 2.'
+value:
+  modules:
+    - id: a
+      value:
+        type: rawscript
+        content: '!inline a.inline_script.py'
+        input_transforms:
+          name:
+            type: javascript
+            expr: flow_input.name
+        lock: '!inline a.inline_script.lock'
+        language: python3
+    - id: b
+      value:
+        type: rawscript
+        content: '!inline b.inline_script.py'
+        input_transforms:
+          prev:
+            type: javascript
+            expr: results.a
+        lock: '!inline b.inline_script.lock'
+        language: python3
+schema:
+  $schema: https://json-schema.org/draft/2020-12/schema
+  type: object
+  properties:
+    name:
+      type: string
+      default: Windmill
+  required: []

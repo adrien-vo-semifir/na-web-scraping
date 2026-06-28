@@ -1,0 +1,24 @@
+version: v2
+locks:
+  u/admin/acquisition.flow/+__flow_hash: d6714e636cf3ef9fd6471175506c72e331fef185609a063a88d9c55dfa8822ea
+  u/admin/acquisition.flow/+alidate.inline_script.py: 1b496eb6dfcd3958f79266c9fc78bc2ba473991c000b360478d3d3757d002b2b
+  u/admin/acquisition.flow/+cquire_cascade.inline_script.py: 048508ba3a1a6b858346ab03419e13470a79f020e1002387d39967e56d7f6643
+  u/admin/acquisition.flow+__flow_hash: ab72b258e941c676a26718ffe02b7906227780e03e3ac055d40cc96542853eb1
+  u/admin/acquisition.flow+acquire_cascade.inline_script.py: d9c2339dd1f898fb42cc109e628d78bd0427287ebc1d8cca0955e667a01358d2
+  u/admin/acquisition.flow+validate.inline_script.py: 1a59cfa0f00c38e267baab08497d23bd96e049c074cab98bb9e3bfd20b32751a
+  u/admin/batch_sieve.flow/+__flow_hash: 9b4f40de623899c801c85fd823b59440460929129e78a60ff2830f179c9c6d7d
+  u/admin/batch_sieve.flow/+artition.inline_script.py: 74a174b4bf620a7b022735db41cdab37c013891834788fb0cd33c19a1b35b4d4
+  u/admin/batch_sieve.flow/+rep.inline_script.py: 3c3a8e629db902e14012d5c9dabc2a1ae30cf1bdd101cb368af452faa58cfa54
+  u/admin/batch_sieve.flow+__flow_hash: 9091a454001a93916aa94b2d101ad386bfe5791fe92902c81a2255f2732d7257
+  u/admin/batch_sieve.flow+partition.inline_script.py: 74a174b4bf620a7b022735db41cdab37c013891834788fb0cd33c19a1b35b4d4
+  u/admin/batch_sieve.flow+prep.inline_script.py: 3c3a8e629db902e14012d5c9dabc2a1ae30cf1bdd101cb368af452faa58cfa54
+  u/admin/crawl.flow/+__flow_hash: cc065ccb2aa4dc08869d9fa63736b190d0e59aec7002eb03b36475cedfaaa304
+  u/admin/crawl.flow/+repare.inline_script.py: c64b7e2a9db1c8358168489dc477c1d5295b32abb64ff2b194ee316fc6dbfbf0
+  u/admin/crawl.flow+__flow_hash: 91a1083a8f255ed2ed140478de6e5c137a2bcb03504901522e551a09755a0111
+  u/admin/crawl.flow+prepare.inline_script.py: c64b7e2a9db1c8358168489dc477c1d5295b32abb64ff2b194ee316fc6dbfbf0
+  u/admin/hello: 4a829b565914156aed00fa824f137779a639e674c51270d353cff17987012c71
+  u/admin/hello_flow.flow/+__flow_hash: 176201fa998ebc081c1b812e188dd3b3f09cd8439e3ea0485dab31960483d6eb
+  u/admin/hello_flow.flow/+.inline_script.py: fd8ea673279f09af2f617884d8ffc37a9bc1a17fc91ea185d672149f8693c776
+  u/admin/hello_flow.flow+__flow_hash: a71e7457937aa05b13160e5f912780b587ccdfdbc8def44e438a3178c8007b32
+  u/admin/hello_flow.flow+a.inline_script.py: 6a8f3456b7eedd75bdadcd18622853bd23cf33800b813d752b5d54878f2e21dc
+  u/admin/hello_flow.flow+b.inline_script.py: fd8ea673279f09af2f617884d8ffc37a9bc1a17fc91ea185d672149f8693c776

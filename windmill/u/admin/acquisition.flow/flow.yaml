@@ -1,0 +1,76 @@
+summary: Acquisition — cascade d'escalade (notre workflow)
+description: Cascade N1 http -> N2 curl_cffi -> N3 browser -> N4 stealth
+  (strategie-anti-bot.md). Entrée adaptative par domaine, escalade si
+  bloqué/incomplet. Même contrat (acquisition_id, final_state, object_key).
+value:
+  modules:
+    - id: acquire_cascade
+      value:
+        type: rawscript
+        content: '!inline acquire_cascade.inline_script.py'
+        input_transforms:
+          configuration_version:
+            type: javascript
+            expr: flow_input.configuration_version
+          dataset:
+            type: javascript
+            expr: flow_input.dataset
+          entry_rank:
+            type: javascript
+            expr: flow_input.entry_rank
+          max_rank:
+            type: javascript
+            expr: flow_input.max_rank
+          source:
+            type: javascript
+            expr: flow_input.source
+          url:
+            type: javascript
+            expr: flow_input.url
+        lock: '!inline acquire_cascade.inline_script.lock'
+        language: python3
+        tag: chromium
+    - id: validate
+      value:
+        type: rawscript
+        content: '!inline validate.inline_script.py'
+        input_transforms:
+          acq:
+            type: javascript
+            expr: results.acquire_cascade
+        lock: '!inline validate.inline_script.lock'
+        language: python3
+schema:
+  $schema: https://json-schema.org/draft/2020-12/schema
+  type: object
+  properties:
+    configuration_version:
+      type: string
+      default: v1
+    dataset:
+      type: string
+      default: pages
+    entry_rank:
+      type: string
+      default: auto
+      enum:
+        - auto
+        - http
+        - curl_cffi
+        - browser
+        - stealth
+    max_rank:
+      type: string
+      default: stealth
+      enum:
+        - http
+        - curl_cffi
+        - browser
+        - stealth
+    source:
+      type: string
+      default: web
+    url:
+      type: string
+  required:
+    - url

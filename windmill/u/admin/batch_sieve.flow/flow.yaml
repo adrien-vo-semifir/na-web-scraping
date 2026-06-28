@@ -1,0 +1,94 @@
+summary: Batch sieve — une passe à un niveau (fan-out -> partition ok/échec)
+description: Traite tout un lot à UN niveau ; renvoie le funnel + la liste
+  d'échecs (= entrée de la passe niveau+1). Modèle staged.
+value:
+  modules:
+    - id: prep
+      value:
+        type: rawscript
+        content: '!inline prep.inline_script.py'
+        input_transforms:
+          level:
+            type: javascript
+            expr: flow_input.level
+          urls:
+            type: javascript
+            expr: flow_input.urls
+        lock: '!inline prep.inline_script.lock'
+        language: python3
+    - id: fanout
+      value:
+        type: forloopflow
+        modules:
+          - id: acq
+            value:
+              type: flow
+              input_transforms:
+                configuration_version:
+                  type: static
+                  value: v1
+                dataset:
+                  type: static
+                  value: pages
+                entry_rank:
+                  type: javascript
+                  expr: flow_input.iter.value.level
+                max_rank:
+                  type: javascript
+                  expr: flow_input.iter.value.level
+                source:
+                  type: static
+                  value: web
+                url:
+                  type: javascript
+                  expr: flow_input.iter.value.url
+              path: u/admin/acquisition
+        iterator:
+          type: javascript
+          expr: results.prep
+        parallel: true
+        parallelism:
+          type: static
+          value: 5
+        skip_failures: true
+    - id: partition
+      value:
+        type: rawscript
+        content: '!inline partition.inline_script.py'
+        input_transforms:
+          category:
+            type: javascript
+            expr: flow_input.category
+          level:
+            type: javascript
+            expr: flow_input.level
+          results:
+            type: javascript
+            expr: results.fanout
+          urls:
+            type: javascript
+            expr: flow_input.urls
+        lock: '!inline partition.inline_script.lock'
+        language: python3
+schema:
+  $schema: https://json-schema.org/draft/2020-12/schema
+  type: object
+  properties:
+    category:
+      type: string
+      default: default
+    level:
+      type: string
+      default: http
+      enum:
+        - http
+        - curl_cffi
+        - browser
+        - stealth
+    urls:
+      type: array
+      default: []
+      items:
+        type: string
+  required:
+    - urls
