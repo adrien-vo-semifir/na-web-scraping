@@ -44,6 +44,8 @@ func run() int {
 		sourceFlag  = flag.String("source", "web", "identifiant logique de la source")
 		datasetFlag = flag.String("dataset", "pages", "jeu de données cible")
 		cfgVerFlag  = flag.String("config-version", "v1", "version de configuration (idempotence)")
+		browserFlag = flag.Bool("browser", false, "mode navigateur → route vers le worker TS (Playwright)")
+		furtifFlag  = flag.Bool("furtif", false, "transport furtif → route vers le worker Python (curl_cffi)")
 		asyncFlag   = flag.Bool("async", false, "ne pas attendre le résultat du Workflow")
 	)
 	flag.Parse()
@@ -70,6 +72,12 @@ func run() int {
 		Dataset:              *datasetFlag,
 		Mode:                 acquisitionv1.AcquisitionMode_STATIC,
 		ConfigurationVersion: *cfgVerFlag,
+	}
+	if *browserFlag {
+		cmd.Mode = acquisitionv1.AcquisitionMode_BROWSER // → worker TS (acquisition-ts)
+	}
+	if *furtifFlag {
+		cmd.Headers = map[string]string{"furtif": "true"} // → worker Python (acquisition-py)
 	}
 
 	// Workflow ID déterministe = acquisition_id → garantit l'idempotence du déclenchement

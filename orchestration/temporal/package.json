@@ -1,0 +1,25 @@
+{
+  "name": "orchestration-temporal-ts",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Couche d'orchestration TypeScript du module web-scraping : Worker Temporal portant l'Activity navigateur (core/browser-fetcher-ts) sur la Task Queue acquisition-ts. SEUL point de couplage Temporal côté TS (cf. docs/structure-projet.md §1 & §3.3).",
+  "type": "module",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "worker": "tsx worker-bootstrap-ts/worker.ts",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@temporalio/activity": "1.18.1",
+    "@temporalio/client": "1.18.1",
+    "@temporalio/worker": "1.18.1",
+    "playwright": "1.61.1"
+  },
+  "devDependencies": {
+    "@types/node": "26.0.1",
+    "tsx": "4.22.4",
+    "typescript": "6.0.3"
+  }
+}

@@ -1,0 +1,8 @@
+# Dépendances et artefacts de build des workers polyglottes (TS / Python).
+# uv écrit déjà .venv/.gitignore = "*", mais on l'ancre ici par robustesse.
+node_modules/
+.venv/
+__pycache__/
+*.pyc
+dist/
+*.log

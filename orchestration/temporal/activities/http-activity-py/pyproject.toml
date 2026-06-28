@@ -1,0 +1,42 @@
+# orchestration/temporal/activities/http-activity-py — enveloppe d'Activity Temporal
+# (Python) du moteur HTTP statique FURTIF (core/http-fetcher-py).
+#
+# SEULE couche, avec le reste d'orchestration/temporal/, autorisée à importer le SDK
+# Temporal (docs/structure-projet.md §1). Pendant Python des enveloppes Go
+# (http-activity-go) et TS (browser-activity-ts) : même nom d'Activity "AcquireActivity",
+# même contrat JSON (snake_case, enums nominales), autre moteur/langage.
+#
+# Projet Python ISOLÉ (sa propre .venv via `uv sync`). NE réutilise PAS la .venv racine
+# du module ni un workspace uv parent ([tool.uv] package = true). Dépend, PAR CHEMIN, du
+# moteur core/http-fetcher-py et du contrat partagé contracts/gen/python.
+
+[project]
+name = "http-activity-py"
+version = "0.1.0"
+description = "Enveloppe d'Activity Temporal (Python) du moteur HTTP statique furtif"
+requires-python = ">=3.12"
+dependencies = [
+    # SDK Temporal Python — dernière version stable (POC = base de production : pas de
+    # pré-release). Importé UNIQUEMENT sous orchestration/temporal/.
+    "temporalio>=1.29.0",
+    # Moteur d'acquisition (fetch / validate / store) — paquet local par chemin.
+    "http-fetcher-py",
+    # Contrat partagé (acquisition.v1) — paquet local par chemin.
+    "acquisition-contracts",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/acquire_activity_py"]
+
+[tool.uv]
+# Paquet autonome : NE PAS hériter d'un éventuel workspace uv parent (.venv racine).
+package = true
+
+[tool.uv.sources]
+# Le moteur et le contrat vivent hors de ce dossier : dépendances par chemin, éditables.
+http-fetcher-py = { path = "../../../../core/http-fetcher-py", editable = true }
+acquisition-contracts = { path = "../../../../contracts/gen/python", editable = true }

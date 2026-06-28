@@ -1,0 +1,45 @@
+# orchestration/temporal/worker-bootstrap-py — Worker bootstrap Temporal (Python).
+#
+# Composition root du langage Python : démarre le Worker furtif qui poll la Task Queue
+# "acquisition-py" et exécute l'Activity "AcquireActivity" (moteur HTTP statique furtif).
+# Pendant Python du worker-bootstrap Go (main.go) et TS (worker.ts). SEULE couche, avec
+# le reste d'orchestration/temporal/, autorisée à importer le SDK Temporal.
+#
+# Projet Python ISOLÉ (sa propre .venv via `uv sync`). NE réutilise PAS la .venv racine
+# du module ni un workspace uv parent ([tool.uv] package = true). C'est le projet
+# LANÇABLE : il dépend, PAR CHEMIN, de l'enveloppe d'Activity (http-activity-py), qui
+# tire transitivement le moteur (core/http-fetcher-py), le contrat (contracts/gen/python)
+# et temporalio.
+
+[project]
+name = "worker-bootstrap-py"
+version = "0.1.0"
+description = "Worker bootstrap Temporal (Python) — Task Queue acquisition-py, Activity AcquireActivity furtive"
+requires-python = ">=3.12"
+dependencies = [
+    # SDK Temporal Python — dernière version stable (POC = base de production).
+    "temporalio>=1.29.0",
+    # Enveloppe d'Activity (et, transitivement, core/http-fetcher-py + contrat) par chemin.
+    "http-activity-py",
+]
+
+[project.scripts]
+# Lancement direct : `uv run acquisition-worker-py`.
+acquisition-worker-py = "acquisition_worker_py.worker:main"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/acquisition_worker_py"]
+
+[tool.uv]
+# Paquet autonome : NE PAS hériter d'un éventuel workspace uv parent (.venv racine).
+package = true
+
+[tool.uv.sources]
+# L'enveloppe d'Activity vit hors de ce dossier : dépendance par chemin, éditable. Elle
+# déclare elle-même ses propres sources (http-fetcher-py, acquisition-contracts), que uv
+# résout récursivement.
+http-activity-py = { path = "../activities/http-activity-py", editable = true }

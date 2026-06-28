@@ -1,0 +1,22 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext",
+    "lib": ["ES2023"],
+    "types": ["node"],
+    "strict": true,
+    "esModuleInterop": true,
+    "forceConsistentCasingInFileNames": true,
+    "skipLibCheck": true,
+    "noEmit": true,
+    "resolveJsonModule": true,
+    "verbatimModuleSyntax": true
+  },
+  "include": [
+    "activities/browser-activity-ts/**/*.ts",
+    "worker-bootstrap-ts/**/*.ts",
+    "../../core/browser-fetcher-ts/src/**/*.ts",
+    "../../contracts/gen/ts/**/*.ts"
+  ]
+}
