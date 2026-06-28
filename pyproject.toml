@@ -1,7 +1,7 @@
 [project]
 name = "web-scraping"
 version = "0.0.0"
-description = "Plateforme d'acquisition de contenu web (pages + fichiers) — artefacts bruts vers SeaweedFS. Acquisition seule, jamais déjouer."
+description = "Plateforme d'acquisition de contenu web (pages + fichiers) — artefacts bruts vers SeaweedFS."
 readme = "README.md"
 requires-python = ">=3.12"
 license = { text = "Proprietary" }

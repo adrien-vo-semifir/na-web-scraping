@@ -12,15 +12,15 @@
 
 Récupérer le contenu de pages web hétérogènes — statiques ou rendues par JavaScript — et les fichiers qu'elles référencent, de façon générique et indépendante du mécanisme concret de navigation ou de protection rencontré. Produire un contenu brut et des métadonnées techniques exploitables par une couche d'extraction ultérieure.
 
-### 1.2 Ce qu'elle ne fait pas
+### 1.2 Positionnement vis-à-vis de l'extraction
 
-Pas d'extraction métier, pas de normalisation, pas d'interprétation du sens, pas de modèle de données métier. La frontière est posée en § 4.
+L'extraction métier, la normalisation, l'interprétation du sens et le modèle de données métier vivent plutôt en aval (note de positionnement en § 4) ; au POC, le module peut néanmoins analyser et extraire librement.
 
 ### 1.3 Principe directeur
 
-Face aux protections d'accès : **détecter, classifier, respecter et s'adapter dans le cadre autorisé** — jamais déjouer. Toute adaptation du contexte d'acquisition est gouvernée (fichier 02, partie session/réseau).
+Face aux protections d'accès : **détecter et classifier**, puis acquérir le contenu. Au POC, toute la cascade d'acquisition est disponible (compatibilité, furtif, managé, solveurs) ; le contexte d'acquisition est adaptable librement (fichier 02, partie session/réseau).
 
-> **Encart conformité — avant production.** Ce blueprint cible un POC. La qualification légale par source (nature des données, `robots.txt`, conditions d'utilisation, base légale RGPD si données personnelles, autorisation contractuelle) doit être traitée **avant tout passage en production** et n'est pas couverte ici.
+> **Encart — pour plus tard.** Ce blueprint cible un POC sans contrainte. La qualification légale par source (nature des données, `robots.txt`, conditions d'utilisation, base légale RGPD si données personnelles, autorisation contractuelle) relève de la **phase pré-production** et n'est pas couverte ici.
 
 ---
 
@@ -50,7 +50,7 @@ subgraph C["C. Session et réseau"]
     C1["Gestion de session<br><i>Authentification, cookies, jetons, état</i>"]
     C2["Couche réseau<br><i>DNS, TLS, pools, délais, redirections</i>"]
     C3["Contrôle des sorties<br><i>Domaines et adresses autorisés, anti-SSRF</i>"]
-    C4["Adaptation contrôlée<br><i>Compatibilité gouvernée, jamais dissimulation</i>"]
+    C4["Adaptation du contexte<br><i>Compatibilité, rotation d'identité/réseau, empreinte</i>"]
 end
 
 subgraph D["D. Moteurs d'acquisition"]
@@ -74,7 +74,7 @@ end
 subgraph F["F. Protections et réaction"]
     F1["Détection<br><i>CAPTCHA, défi, throttling, WAF, environnement</i>"]
     F2["Qualification<br><i>Soft block, hard block, confiance</i>"]
-    F3["Politique de réaction<br><i>Respecter, ralentir, replanifier, arrêter</i>"]
+    F3["Politique de réaction<br><i>S'adapter, ralentir, replanifier, escalader, arrêter</i>"]
 end
 
 subgraph G["G. Validation et artefacts"]
@@ -97,7 +97,7 @@ subgraph I["I. Sécurité d'exécution"]
 end
 
 subgraph J["J. Exploitation"]
-    J1["Boucle de retour<br><i>Analyse opérationnelle, ajustement gouverné</i>"]
+    J1["Boucle de retour<br><i>Analyse opérationnelle, ajustement des stratégies</i>"]
     J2["Observabilité<br><i>Corrélation, métriques par stratégie, SLO</i>"]
     J3["Tests et replay<br><i>Scénario, résilience, non-régression, rejeu</i>"]
 end
@@ -247,11 +247,11 @@ FEEDBACK --> CFG
 
 ---
 
-## 4. Frontière de responsabilité
+## 4. Responsabilités et positionnement
 
-### 4.1 Acquisition contre extraction
+### 4.1 Acquisition et extraction
 
-La plateforme produit du contenu brut et des métadonnées. Elle ne produit pas le modèle métier.
+La plateforme produit du contenu brut et des métadonnées ; l'extraction du modèle métier vit plutôt en aval (positionnement par défaut, non imposé au POC).
 
 ```mermaid
 flowchart LR
@@ -266,7 +266,7 @@ flowchart LR
     style TRANSFORM fill:#444,color:#fff
 ```
 
-Validation technique minimale admise dans l'acquisition : statut, type de contenu, taille, encodage, intégrité, présence du document, empreinte. Rien de plus.
+Validation technique typique dans l'acquisition : statut, type de contenu, taille, encodage, intégrité, présence du document, empreinte.
 
 ### 4.2 Parcours contre acquisition contre plateforme
 
@@ -296,7 +296,7 @@ flowchart LR
 | `00-hub.md` | Ce document | Tous (macro) | Composants global, flux macro |
 | `01-contrats-modele-donnees.md` | Commande, résultat, artefact, checkpoint, échange HTTP, identifiants | Transverse | Classes, entités |
 | `02-pilotage-distribution.md` | Pilotage, parcours, file, cycle de vie, idempotence, résilience | A, B | Composant, activité, état, séquence |
-| `03-session-reseau.md` | Session, accès, réseau, anti-SSRF, adaptation contrôlée | C | Composant, activité, séquence |
+| `03-session-reseau.md` | Session, accès, réseau, anti-SSRF, adaptation du contexte | C | Composant, activité, séquence |
 | `04-moteur-navigation.md` | Moteurs, sélection de mode, état prêt, SPA, structures, découverte, formulaires, capture HTTP | D, E | Composant, activité, séquence, état |
 | `05-protections-reaction.md` | Détection, qualification soft/hard, politique de réaction | F | Composant, activité, séquence |
 | `06-validation-artefacts.md` | Validation technique, cache conditionnel, déduplication, observation, sorties | G | Composant, activité |
@@ -306,10 +306,9 @@ flowchart LR
 
 ## 6. Décisions d'architecture verrouillées
 
-> **Encart — à ne pas réintroduire.** Deux motifs ont été écartés en arbitrage et ne doivent pas être réimportés depuis des variantes techniques de ce blueprint :
+> **Encart — décision verrouillée.**
 >
-> 1. **Rotation automatique d'identité ou de réseau** (rotation de proxies, usurpation d'empreinte, profils d'identité tournants pour échapper à une détection). Remplacé par l'adaptation contrôlée et gouvernée (fichier 03). La compatibilité technique légitime est admise ; la dissimulation ne l'est pas.
-> 2. **Déduplication menant à « contenu ignoré » pur.** Même si l'empreinte existe déjà, une **observation d'acquisition** doit être enregistrée (preuve d'interrogation, date, statut, latence, fraîcheur). Voir fichier 06, déduplication et observation.
+> 1. **Déduplication menant à « contenu ignoré » pur.** Même si l'empreinte existe déjà, une **observation d'acquisition** doit être enregistrée (preuve d'interrogation, date, statut, latence, fraîcheur). Voir fichier 06, déduplication et observation.
 
 ---
 

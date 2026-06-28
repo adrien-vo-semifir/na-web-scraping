@@ -2,7 +2,7 @@
 
 > **Groupe** : F (protections et réaction).
 > **Prérequis** : `00-hub.md`, `04-moteur-navigation.md`.
-> **Posture** : détecter, classifier, journaliser et respecter. Le contournement n'est jamais un comportement standard.
+> **Posture** : détecter, classifier et journaliser les protections rencontrées.
 
 ---
 
@@ -137,7 +137,7 @@ Protection détectée
 
 ## 5. Qualification du contrôle d'environnement
 
-Fingerprinting et contrôle comportemental sont détectés et classifiés, jamais contournés.
+Fingerprinting et contrôle comportemental sont détectés et classifiés.
 
 ```mermaid
 flowchart LR
@@ -156,7 +156,7 @@ flowchart LR
     BEHAV --> POL
 ```
 
-Responsabilité face à un contrôle d'environnement : détecter, classifier, journaliser, appliquer la politique autorisée, suspendre ou escalader. Aucune usurpation d'empreinte (rappel hub § 6).
+Responsabilité face à un contrôle d'environnement : détecter, classifier, journaliser, appliquer la politique retenue, suspendre ou escalader.
 
 ---
 

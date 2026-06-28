@@ -1,10 +1,8 @@
 # Stratégie scraping, automatisation web & robustesse anti-bot (2026)
 
-> ⚠️ **Partiellement superseded par le blueprint [`00-hub.md`](00-hub.md) (§6 — décisions verrouillées).**
-> Le silo d'acquisition retient le principe **« détecter, classifier, respecter, s'adapter — jamais déjouer »** :
-> **pas** de rotation de proxy/identité, d'usurpation d'empreinte ni d'unlockers managés d'évasion. Les sections
-> ci-dessous décrivant une **cascade furtive** / des **services d'évasion** sont conservées comme
-> **référence / veille**, **pas** comme cible. Cf. **ADR 0021** (monorepo `carto_entreprises`).
+> **Doc de référence technique** — la **cascade d'escalade complète** (furtif, managé, solveurs CAPTCHA) est
+> **disponible au POC** (POC sans contrainte ; sécurité / légalité = phase pré-production). Blueprint :
+> [`00-hub.md`](00-hub.md) · décision monorepo : **ADR 0021**.
 
 > **Doc de référence d'architecture** — pas un benchmark universel. Le détail outil par outil (stars, activité,
 > licence, pérennité…) vit dans le **référentiel** `technologies-referentiel.xlsx` (monorepo `carto_entreprises`)

@@ -2,7 +2,7 @@
 
 > **Groupe** : C (session et réseau).
 > **Prérequis** : `00-hub.md`, `01-contrats-modele-donnees.md`.
-> **Contenu** : gestion de session, contrôle d'accès, couche réseau, contrôle des sorties et anti-SSRF, adaptation contrôlée du contexte.
+> **Contenu** : gestion de session, contrôle d'accès, couche réseau, contrôle des sorties et anti-SSRF, adaptation du contexte.
 
 ---
 
@@ -153,7 +153,7 @@ N --> W : réponse d'authentification requise
 W -> S : renouveler la session
 S -> V : résoudre les secrets
 V --> S : identifiants
-S -> T : ré-authentifier (mécanisme autorisé)
+S -> T : ré-authentifier
 T --> S : nouvelle session
 S --> W : contexte renouvelé
 W -> N : rejouer la requête
@@ -163,22 +163,20 @@ N --> W : contenu
 @enduml
 ```
 
-Le renouvellement de session est un mécanisme autorisé : il rejoue l'authentification normale de la source. Il ne s'agit pas de contourner une protection mais de rétablir un accès légitime expiré.
+Le renouvellement de session rejoue l'authentification de la source pour rétablir un accès expiré.
 
 ---
 
-## 6. Adaptation contrôlée du contexte
+## 6. Adaptation du contexte
 
-Remplace toute notion de « stealth ». Distingue la compatibilité technique légitime de la dissimulation. Seule la première est admise, et uniquement si la politique l'autorise.
+Leviers d'adaptation du contexte d'acquisition disponibles lorsqu'une incompatibilité est détectée.
 
 ```mermaid
 flowchart LR
-    SIGNAL[Incompatibilité détectée] --> POLICY{Adaptation autorisée ?}
-    POLICY -- Oui --> CONTEXT[Adapter le contexte d'acquisition]
-    POLICY -- Non --> STOP[Arrêter ou demander une revue]
+    SIGNAL[Incompatibilité détectée] --> CONTEXT[Adapter le contexte d'acquisition]
     CONTEXT --> SESSION[Cohérence de session]
     CONTEXT --> CLIENT[Compatibilité du client]
-    CONTEXT --> NETWORK[Chemin réseau autorisé]
+    CONTEXT --> NETWORK[Chemin réseau]
     CONTEXT --> RATE[Rythme d'accès]
     CONTEXT --> RENDER[Mode de rendu]
     SESSION --> RETRY[Nouvelle tentative]
@@ -188,12 +186,11 @@ flowchart LR
     RENDER --> RETRY
 ```
 
-| Admis (compatibilité) | Exclu — voir encart hub § 6 |
-| --- | --- |
-| Maintien de la cohérence de session | Rotation automatique d'identité pour éviter un blocage |
-| Compatibilité du client avec les exigences normales du site | Usurpation d'empreinte pour déjouer une détection |
-| Utilisation d'un chemin réseau autorisé | Rotation de proxies destinée à contourner un bannissement |
-| Ajustement du rythme d'accès | — |
-| Choix du mode de rendu adapté | — |
-
-> Rappel verrouillé (hub § 6) : la rotation automatique d'identité ou de réseau n'est pas le comportement standard de la plateforme.
+| Levier d'adaptation |
+| --- |
+| Maintien de la cohérence de session |
+| Compatibilité du client avec les exigences du site |
+| Rotation d'identité ou de proxies |
+| Usurpation d'empreinte |
+| Ajustement du rythme d'accès |
+| Choix du mode de rendu adapté |
