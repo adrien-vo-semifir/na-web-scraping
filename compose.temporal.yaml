@@ -92,3 +92,16 @@ services:
     depends_on: [temporal]
     networks: [web_scraping_net]
     ports: ["${API_PORT:-8000}:8000"]
+
+  # =================== Outils de test / visualisation (profil opt-in : "builder") ===================
+  # Workflow Builder (Synergy Codes, Apache-2.0) — éditeur visuel d'authoring (apps/demo, React Flow).
+  # Frontend PUR servi en statique : ne dépend PAS de Temporal. Peut tourner seul :
+  #   docker compose --profile builder up -d --build workflow-builder   → http://localhost:4202
+  workflow-builder:
+    profiles: ["builder"]
+    build:
+      context: docker/workflow-builder   # contexte minimal ; le Dockerfile clone le source amont (pin v2.1.0) lui-même
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    networks: [web_scraping_net]
+    ports: ["${WORKFLOW_BUILDER_PORT:-4202}:80"]
