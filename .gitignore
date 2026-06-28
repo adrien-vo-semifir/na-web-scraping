@@ -17,3 +17,11 @@ build/
 htmlcov/
 data/_tmp/
 *.log
+
+# Scratch & caches (POC)
+data/
+.venv/
+.mypy_cache/
+.ruff_cache/
+__pycache__/
+*.pyc

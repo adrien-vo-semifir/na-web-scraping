@@ -1,0 +1,25 @@
+syntax = "proto3";
+
+package acquisition.v1;
+
+option go_package = "github.com/adrien-vo-semifir/na-web-scraping/contracts/gen/go/acquisitionv1;acquisitionv1";
+
+// Nature d'un artefact brut produit par un moteur d'acquisition.
+enum ArtifactKind {
+  ARTIFACT_KIND_UNSPECIFIED = 0;
+  RAW_RESPONSE = 1;       // réponse HTTP brute
+  RENDERED_DOCUMENT = 2;  // document rendu (DOM après JS)
+  PAGE_SNAPSHOT = 3;      // capture (snapshot / screenshot)
+  DOWNLOADED_FILE = 4;    // fichier téléchargé
+  HTTP_EXCHANGE = 5;      // échange HTTP sérialisé
+}
+
+// Métadonnées d'un artefact déposé dans le store objet (S3 / Ceph RGW).
+message Artifact {
+  ArtifactKind kind = 1;
+  string content_type = 2;
+  int64 size = 3;
+  string sha256 = 4;   // empreinte de contenu (dédup / intégrité)
+  string key = 5;      // clé objet : raw/<source>/<dataset>/<run_date>/<acquisition_id>/<name>
+  string uri = 6;      // s3://bucket/key (optionnel)
+}

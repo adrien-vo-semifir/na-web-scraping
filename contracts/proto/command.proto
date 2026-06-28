@@ -1,0 +1,24 @@
+syntax = "proto3";
+
+package acquisition.v1;
+
+option go_package = "github.com/adrien-vo-semifir/na-web-scraping/contracts/gen/go/acquisitionv1;acquisitionv1";
+
+// Mode d'acquisition d'une ressource (cf. docs/architecture/04-moteur-navigation.md).
+enum AcquisitionMode {
+  ACQUISITION_MODE_UNSPECIFIED = 0;
+  STATIC = 1;   // HTTP statique (transport)
+  BROWSER = 2;  // rendu navigateur
+  FILE = 3;     // téléchargement de fichier
+}
+
+// Commande d'acquisition — entrée du système (cf. docs/architecture/01-contrats-modele-donnees.md).
+// acquisition_id est dérivé (url + configuration_version) côté code, pour l'idempotence.
+message AcquisitionCommand {
+  string url = 1;
+  string source = 2;                  // identifiant logique de la source (optionnel)
+  string dataset = 3;                 // jeu de données cible (optionnel)
+  AcquisitionMode mode = 4;
+  string configuration_version = 5;   // version de configuration (idempotence)
+  map<string, string> headers = 6;    // en-têtes additionnels (optionnel)
+}

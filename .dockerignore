@@ -1,0 +1,16 @@
+# Contexte de build = racine (cf. docs/structure-projet.md §6). Exclure ce qui ne doit pas entrer dans les images.
+.git
+.github/
+docs/
+data/
+k8s/
+tests/
+compose.yaml
+.dockerignore
+**/.venv/
+**/node_modules/
+**/__pycache__/
+**/*.pyc
+**/target/
+**/bin/
+**/.gitkeep

@@ -1,28 +1,32 @@
-# web-scraping — plateforme d'acquisition de contenu web
+# web-scraping — acquisition de contenu web (monorepo polyglotte)
 
-Module **autonome** (submodule de `carto_entreprises`, monté en `modules/web-scraping/`). Repo : `na-web-scraping`.
+Module **autonome** (submodule `na-web-scraping`). Acquiert des **pages web** (HTTP statique, rendu navigateur) et
+les **fichiers liés**, et produit des **artefacts bruts + métadonnées + échanges HTTP** déposés dans un store S3
+(**Ceph RGW** en prod), orchestrés par **Temporal** (Workflows **Go**, Activities **polyglottes**).
 
-## Rôle
+## Architecture — réversibilité de l'orchestrateur
 
-Acquérir des **pages web** (HTTP statique, rendu navigateur) et les **fichiers liés**, et produire des
-**artefacts bruts + métadonnées techniques + échanges HTTP** déposés dans **Ceph RGW** (`raw/`).
+La logique métier **n'importe jamais** le SDK Temporal ; Temporal est isolé dans `orchestration/temporal/`.
+Détail : **[`docs/structure-projet.md`](docs/structure-projet.md)** (arborescence + règles de dépendance) et le
+blueprint **[`docs/architecture/`](docs/architecture/00-hub.md)** (00 → 08).
 
-- **Acquisition** — l'extraction métier vit plutôt en aval (côté monorepo).
-- **Couplage** au monorepo = **contrat raw uniquement** (convention de clé/manifest Ceph RGW). Aucun import du monorepo.
+| Couche | Rôle | Connaît Temporal ? |
+|---|---|---|
+| `contracts/` | vocabulaire partagé — Protobuf → `gen/{go,ts,python,java}` | non |
+| `core/` | moteurs d'acquisition `<moteur>-fetcher-<langage>/` + `shared/` | non |
+| `platform/` | `control-api` · `storage` · `crawl-controller` | non |
+| `orchestration/temporal/` | `workflows-go` · `activities` · `worker-bootstrap` | **oui (seul)** |
 
-## Documentation
+> Test de réversibilité : supprimer `orchestration/` → `core/`, `platform/`, `contracts/` compilent toujours.
+> Garde-fou CI : `.github/workflows/reversibility.yml`.
 
-Blueprint complet : [`docs/00-hub.md`](docs/00-hub.md) — architecture macro (10 groupes de modules A–J),
-contrats, MVP, diagramme de composants. Décision côté monorepo : **ADR 0021**.
+## Démarrage (POC)
 
-- Stack technologique : [`docs/08-stack-techno.md`](docs/08-stack-techno.md) — reco par domaine (moteur interne
-  **Temporal**, store objet **Ceph RGW**, …), croisée avec le référentiel `docs/technologies.xlsx` (feuille `web-scraping`).
+```bash
+docker compose up -d                    # infra : Temporal · Postgres · Valkey · S3 local (SeaweedFS)
+cd contracts && buf generate            # contrats Protobuf → gen/ (4 langages)
+docker compose --profile workers up -d  # + Workers (une fois le code prêt)
+```
 
-## Structure
-
-- `src/web_scraping/` — `contracts` · `pilotage`(A) · `orchestration`(B) · `session_reseau`(C) · `moteurs`(D) ·
-  `navigation`(E) · `protections`(F) · `validation`(G) · `persistance`(H) · `securite`(I) · `exploitation`(J)
-- `docs/` — blueprint (`00-hub.md` → `08-stack-techno.md`) + `technologies.xlsx`, `strategie-anti-bot.md` (réf. partielle), `audit-captcha/` (veille)
-- `tests/`
-
-> **État** : init / placeholders volontaires — le code se remplira ensuite.
+> **État** : squelette d'architecture posé (contrats + couches + docker/CI). Les moteurs `core/`, les enveloppes
+> `activities/` et les workflows Go se remplissent ensuite, par moteur réellement nécessaire.

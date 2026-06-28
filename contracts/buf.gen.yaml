@@ -1,0 +1,15 @@
+# Génération des contrats dans les 4 langages (Go / Python / TS / Java).
+# Déclenché à la demande (POC) ou en CI (.github/workflows/contracts-gen.yml).
+#   cd contracts && buf generate
+version: v2
+clean: true
+plugins:
+  - remote: buf.build/protocolbuffers/go
+    out: gen/go
+    opt: paths=source_relative
+  - remote: buf.build/protocolbuffers/python
+    out: gen/python
+  - remote: buf.build/community/timostamm-protobuf-ts
+    out: gen/ts
+  - remote: buf.build/protocolbuffers/java
+    out: gen/java

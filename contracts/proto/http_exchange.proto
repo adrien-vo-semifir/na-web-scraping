@@ -1,0 +1,18 @@
+syntax = "proto3";
+
+package acquisition.v1;
+
+option go_package = "github.com/adrien-vo-semifir/na-web-scraping/contracts/gen/go/acquisitionv1;acquisitionv1";
+
+// Échange HTTP brut capturé (requête + réponse complètes) — capacité transverse du module
+// (cf. docs/architecture/06-validation-artefacts.md, 00-hub §0).
+message HttpExchange {
+  string method = 1;
+  string url = 2;
+  string final_url = 3;                      // après redirections
+  int32 status = 4;
+  map<string, string> request_headers = 5;
+  map<string, string> response_headers = 6;
+  map<string, double> timings = 7;           // dns / tls / ttfb / total (ms)
+  string protocol = 8;                        // HTTP/1.1, HTTP/2, HTTP/3
+}

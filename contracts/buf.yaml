@@ -1,0 +1,11 @@
+# Contrats Protobuf — SOURCE UNIQUE des contrats (cf. docs/structure-projet.md §3).
+# Zéro dépendance Temporal. Les types générés vivent dans gen/<langage>/ (ne pas éditer à la main).
+version: v2
+modules:
+  - path: proto
+lint:
+  use:
+    - STANDARD
+breaking:
+  use:
+    - FILE

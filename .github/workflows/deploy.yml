@@ -1,0 +1,12 @@
+# Déploiement par image (prod). Cf. docs/structure-projet.md §7 (autoscaling par Task Queue, k8s/workers/).
+name: deploy
+on:
+  workflow_dispatch:
+  push:
+    tags: ["v*"]
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: echo "déploiement par worker à implémenter (build+push image, rollout k8s/workers/)"

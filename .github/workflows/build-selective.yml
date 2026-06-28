@@ -1,0 +1,14 @@
+# Build sélectif par chemin modifié (POC : global ; prod : une image par worker). Cf. docs/structure-projet.md §7.
+name: build-selective
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      # TODO: dorny/paths-filter pour détecter les chemins modifiés, puis builder l'image impactée
+      #       (un job par docker/<worker>/Dockerfile, contexte = racine).
+      - run: echo "build sélectif à implémenter (une image par worker selon docker/<worker>/)"

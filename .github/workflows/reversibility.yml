@@ -1,0 +1,20 @@
+# Garde-fou de RÉVERSIBILITÉ (docs/structure-projet.md §1 & §7) :
+# aucun fichier hors orchestration/temporal/ ne doit importer le SDK Temporal.
+name: reversibility-guard
+on: [push, pull_request]
+jobs:
+  no-temporal-coupling:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Interdire l'import du SDK Temporal hors orchestration/temporal/
+        run: |
+          hits=$(grep -RIlE "go\.temporal\.io/sdk|temporalio|io\.temporal\.client" \
+                   --include='*.go' --include='*.py' --include='*.ts' --include='*.java' \
+                   -- core platform contracts 2>/dev/null || true)
+          if [ -n "$hits" ]; then
+            echo "::error::Couplage Temporal interdit hors orchestration/temporal/ :"
+            echo "$hits"
+            exit 1
+          fi
+          echo "OK — aucun couplage Temporal hors orchestration/temporal/"

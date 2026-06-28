@@ -1,0 +1,31 @@
+syntax = "proto3";
+
+package acquisition.v1;
+
+import "command.proto";
+import "artifact.proto";
+import "http_exchange.proto";
+import "google/protobuf/timestamp.proto";
+
+option go_package = "github.com/adrien-vo-semifir/na-web-scraping/contracts/gen/go/acquisitionv1;acquisitionv1";
+
+// État final normalisé d'une acquisition (cf. docs/architecture/05-protections-reaction.md).
+enum FinalState {
+  FINAL_STATE_UNSPECIFIED = 0;
+  SUCCESS = 1;
+  UNCHANGED = 2;   // 304 / contenu identique
+  RETRYABLE = 3;   // échec transitoire
+  PERMANENT = 4;   // échec définitif
+  BLOCKED = 5;     // protection / WAF / challenge
+}
+
+// Résultat d'acquisition — sortie du système.
+message AcquisitionResult {
+  string acquisition_id = 1;
+  FinalState final_state = 2;
+  AcquisitionMode mode = 3;                  // défini dans command.proto
+  repeated Artifact artifacts = 4;
+  HttpExchange http_exchange = 5;
+  google.protobuf.Timestamp observed_at = 6;
+  string error = 7;
+}

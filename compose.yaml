@@ -1,0 +1,94 @@
+# Stack locale POC (cf. docs/structure-projet.md §6 — contexte de build = RACINE du repo).
+#   docker compose up -d                      → infra (Temporal · Postgres · Valkey · S3 local)
+#   docker compose --profile workers up -d    → + Workers (une fois contracts/gen + code prêts)
+name: web-scraping
+
+networks:
+  web_scraping_net:
+    driver: bridge
+
+volumes:
+  postgres_data:
+  valkey_data:
+  seaweedfs_data:
+
+services:
+  # =================== Infra partagée (k8s/infra en prod) ===================
+  postgres:
+    image: postgres:${POSTGRES_VERSION:-17}
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-acquisition}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-acquisition}
+      POSTGRES_DB: ${POSTGRES_DB:-acquisition}
+    volumes: [postgres_data:/var/lib/postgresql/data]
+    networks: [web_scraping_net]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-acquisition}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  temporal:
+    image: temporalio/auto-setup:${TEMPORAL_VERSION:-1.28.0}
+    restart: unless-stopped
+    depends_on:
+      postgres: { condition: service_healthy }
+    environment:
+      DB: postgres12                 # plugin Postgres (compatible PG 12+)
+      DB_PORT: 5432
+      POSTGRES_USER: ${POSTGRES_USER:-acquisition}
+      POSTGRES_PWD: ${POSTGRES_PASSWORD:-acquisition}
+      POSTGRES_SEEDS: postgres
+    networks: [web_scraping_net]
+    ports: ["${TEMPORAL_PORT:-7233}:7233"]
+
+  temporal-ui:
+    image: temporalio/ui:${TEMPORAL_UI_VERSION:-2.34.0}
+    restart: unless-stopped
+    depends_on: [temporal]
+    environment:
+      TEMPORAL_ADDRESS: temporal:7233
+      TEMPORAL_CORS_ORIGINS: http://localhost:${TEMPORAL_UI_PORT:-8233}
+    networks: [web_scraping_net]
+    ports: ["${TEMPORAL_UI_PORT:-8233}:8080"]
+
+  valkey:
+    image: valkey/valkey:${VALKEY_VERSION:-8}
+    restart: unless-stopped
+    command: ["valkey-server", "--appendonly", "yes"]
+    volumes: [valkey_data:/data]
+    networks: [web_scraping_net]
+    ports: ["${VALKEY_PORT:-6379}:6379"]
+
+  # Store objet S3 LOCAL pour le POC autonome ; en prod = Ceph RGW (externe, même API S3).
+  seaweedfs:
+    image: chrislusf/seaweedfs:${SEAWEEDFS_VERSION:-latest}
+    restart: unless-stopped
+    command: "server -s3 -dir=/data"
+    volumes: [seaweedfs_data:/data]
+    networks: [web_scraping_net]
+    ports: ["${S3_PORT:-8333}:8333", "${S3_UI_PORT:-9333}:9333"]
+
+  # =================== Workers (profil opt-in : besoin de contracts/gen + code) ===================
+  workflow-worker:                   # Go — porte les Workflows (orchestration/temporal/workflows-go)
+    profiles: ["workers"]
+    build:
+      context: .
+      dockerfile: docker/workflow-worker/Dockerfile
+    restart: unless-stopped
+    depends_on: [temporal]
+    environment:
+      TEMPORAL_ADDRESS: temporal:7233
+      TASK_QUEUE: ${TASK_QUEUE:-acquisition}
+    networks: [web_scraping_net]
+
+  control-api:                       # platform/control-api — entrée REST des commandes
+    profiles: ["workers"]
+    build:
+      context: .
+      dockerfile: docker/control-api/Dockerfile
+    restart: unless-stopped
+    depends_on: [temporal]
+    networks: [web_scraping_net]
+    ports: ["${API_PORT:-8000}:8000"]

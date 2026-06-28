@@ -1,0 +1,18 @@
+# Régénération des contrats Protobuf (4 langages) — cf. contracts/buf.gen.yaml.
+name: contracts-gen
+on:
+  pull_request:
+    paths: ["contracts/proto/**", "contracts/buf.gen.yaml"]
+  workflow_dispatch:
+jobs:
+  generate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: bufbuild/buf-action@v1
+        with:
+          setup_only: true
+      - name: Lint + generate
+        run: cd contracts && buf lint && buf generate
+      - name: Vérifier que gen/ est à jour
+        run: git diff --exit-code contracts/gen || (echo "::error::contracts/gen non régénéré — lancer 'cd contracts && buf generate'"; exit 1)
