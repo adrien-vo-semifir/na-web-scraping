@@ -2,7 +2,7 @@
 
 > **Groupes** : D (moteurs), E (navigation).
 > **Prérequis** : `00-hub.md`, `01-contrats-modele-donnees.md`, `03-session-reseau.md`.
-> **Scope** : pages web. Trois moteurs — HTTP statique, rendu navigateur, téléchargement de fichier. Capture HTTP brute transverse.
+> **Scope** : pages web. Trois moteurs — HTTP statique (**httpx**, furtif **curl_cffi** en escalade), rendu navigateur (**Playwright** ; furtif À suivre : Patchright > Camoufox > nodriver), téléchargement de fichier. Capture HTTP brute transverse. Détail outils : `08-stack-techno.md`.
 > **Cœur fonctionnel** du blueprint : tout le détail de navigation est ici, pas masqué dans une boîte.
 
 ---
@@ -87,11 +87,15 @@ flowchart LR
     FILE --> OUT
 ```
 
-| Mode | Déclencheur | Coût |
-| --- | --- | --- |
-| Acquisition HTTP | Contenu statique, pas d'exécution requise | Faible |
-| Téléchargement de fichier | Ressource fichier référencée | Variable |
-| Rendu navigateur | Contenu injecté par script, SPA | Élevé |
+| Mode | Outil | Déclencheur | Coût |
+| --- | --- | --- | --- |
+| Acquisition HTTP | **httpx** | Contenu statique, pas d'exécution requise | Faible |
+| Acquisition HTTP furtive | **curl_cffi** (TLS/JA3) | Blocage léger sur transport statique | Faible |
+| Téléchargement de fichier | **httpx** (streaming) | Ressource fichier référencée | Variable |
+| Rendu navigateur | **Playwright** | Contenu injecté par script, SPA | Élevé |
+| Rendu navigateur furtif | Patchright / Camoufox / nodriver *(À suivre)* | Blocage navigateur résiduel | Très élevé |
+
+Cascade d'escalade ordonnée par **coût croissant** : `httpx → curl_cffi furtif → Playwright → Patchright/Camoufox/nodriver`. On n'escalade **que si bloqué ou contenu incomplet**. **Entrée adaptative par domaine** : un domaine déjà connu comme protégé peut entrer d'emblée au niveau furtif, sans rejouer les paliers inférieurs. 🔒 **POC sans contrainte** : toute la cascade (furtif, usurpation d'empreinte, navigateurs anti-bot, solveurs) est **disponible** ; sécurité / légalité / RGPD relèvent de la phase pré-production.
 
 ---
 
@@ -124,7 +128,7 @@ flowchart LR
     RESP --> VALID[Vers validation technique]
 ```
 
-Le suivi des redirections rejoue le contrôle anti-SSRF à chaque saut (fichier 03 § 4).
+Le worker HTTP repose sur **httpx** (HTTP/2, pool, en-têtes conditionnels) ; le transport furtif **curl_cffi** est mobilisable en escalade (fichier 03). En cible, le suivi des redirections rejouerait le contrôle anti-SSRF à chaque saut — **différé pré-production, inactif au POC** (fichier 03 § 4).
 
 ---
 
@@ -140,7 +144,7 @@ flowchart LR
     EVENTS --> PROTECT[Vers analyse des protections]
 ```
 
-Le contexte navigateur est éphémère et cloisonné (fichier 07, isolation). L'acquisition porte sur le document après exécution, pas seulement sur le HTML initial.
+Le rendu s'appuie sur **Playwright** (SPA, shadow DOM, iframes, capture réseau/HAR) ; en escalade furtive — domaine résistant — des dérivés Playwright-natifs ou Firefox sont mobilisables *(Patchright, Camoufox, nodriver — À suivre)*. Le contexte navigateur est éphémère et cloisonné (fichier 07, isolation). L'acquisition porte sur le document après exécution, pas seulement sur le HTML initial.
 
 ---
 
@@ -225,6 +229,8 @@ flowchart TB
 | Piloté par URL | Génération ou découverte d'adresses | Suivre une pagination numérotée |
 | Piloté par état | Actions selon l'état courant | Authentification, recherche, détail |
 | Hybride | Combinaison avec repli | Sélecteur principal et solutions de repli |
+
+Localisation par **locators Playwright** (texte, rôle, libellé) côté navigateur ; sur contenu statique, l'analyse de structure pour **naviguer** (repérer liens et zones, **pas** extraire le métier) s'appuie sur **parsel / selectolax / lxml**. Le choix des liens à suivre relève du scoring codé (§ 11).
 
 ---
 
@@ -330,7 +336,7 @@ flowchart LR
     SRVRESP --> PROTECT[Vers analyse des protections]
 ```
 
-Vigilance honeypot : interagir **uniquement** avec les champs autorisés par le scénario, la politique de source ou une règle fonctionnelle validée — pas seulement les champs visibles, car un champ légitime peut être temporairement masqué et un piège peut paraître visible. La réponse de soumission est **capturée et classifiée techniquement** ; les erreurs fonctionnelles sont transmises à la couche d'extraction, non interprétées ici.
+Saisie pilotée par **Playwright** (locators). Vigilance honeypot — concern **technique** d'évitement de piège anti-bot, pas une contrainte de collecte : interagir avec les champs attendus du scénario plutôt qu'avec tous les champs visibles, car un champ légitime peut être temporairement masqué et un piège peut paraître visible. La réponse de soumission est **capturée et classifiée techniquement** ; les erreurs fonctionnelles sont transmises à la couche d'extraction, non interprétées ici.
 
 ---
 

@@ -3,6 +3,8 @@
 > **Groupe** : G (validation et artefacts).
 > **Prérequis** : `00-hub.md`, `01-contrats-modele-donnees.md`.
 > **Contenu** : validation technique, cache et requêtes conditionnelles, déduplication avec observation, sorties.
+>
+> **Outillage (briques tranchées, cf. `08-stack-techno.md` §5).** Contrairement au groupe F, ce groupe s'appuie sur des briques **actées** : validation et contrats = **Pydantic (+Pandera)** ; empreinte / déduplication = **hashlib (SHA-256)** ; sniffing MIME = **filetype / puremagic** ; détection de charset = **charset-normalizer** ; cache HTTP conditionnel = **Hishel** ; écriture des sorties dans le stockage objet (**Ceph RGW**) = client S3 **boto3**. La validation reste **technique** (cf. §3) ; l'extraction de sens vit en aval. *(Les protections de stream — anti-bombe-zip, limites, quarantaine — sont du code applicatif et relèvent du fichier 07.)*
 
 ---
 
@@ -74,7 +76,7 @@ flowchart LR
     HASH --> DEDUP[Vers déduplication]
 ```
 
-Cette validation reste technique : statut, type, taille, encodage, intégrité, présence du document, empreinte. Elle ne supprime pas le bruit, n'interprète pas le sens, ne produit pas le modèle métier (frontière hub § 4).
+Cette validation reste technique : statut, type, taille, encodage, intégrité, présence du document, empreinte. Sur ces seuls signaux techniques, elle **qualifie une réponse valide face à un refus ou une page de protection** (WAF, défi, contenu de blocage renvoyé en `200`) — un tel cas est marqué `BLOCKED` (fichier 01 § 9) et confié à la politique de réaction (fichier 05). Elle ne supprime pas le bruit, n'interprète pas le sens, ne produit pas le modèle métier (frontière hub § 4).
 
 ---
 

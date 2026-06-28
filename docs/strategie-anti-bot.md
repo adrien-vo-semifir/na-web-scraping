@@ -39,6 +39,15 @@ Abandon contrôlé → DLQ / revue humaine
 
 Chaque couche agit sur une **strate différente** ; on ne lance pas un navigateur coûteux pour chaque page.
 
+**Ordre = coût croissant ; on n'escalade que si bloqué / incomplet.** Le furtif n'est pas absent au départ
+(`curl_cffi` = impersonation TLS/JA3, furtif N2 *cheap* avant tout navigateur) ; côté navigateurs, **Patchright**
+est le meilleur furtif Playwright-natif, **Camoufox** vise la furtivité max (Firefox cohérent) et **nodriver**
+cible Cloudflare. **Entrée adaptative par domaine** : pour un domaine **connu protégé** (Cloudflare / DataDome…),
+le routeur entre directement au cran furtif (mémoire / policy par domaine), sans re-grimper l'échelle à chaque
+requête ; pour un domaine **inconnu**, on sonde au moins cher. Détail outil par outil (rangs de repli N1 → N3,
+états) : [`08-stack-techno.md`](08-stack-techno.md) §4 et référentiel `technologies.xlsx` (feuille `web-scraping`,
+colonne *Rang / repli*).
+
 | Couche | Outils (réf. xlsx) | Rôle |
 |---|---|---|
 | **Transport HTTP / impersonation** | `curl_cffi`, `niquests`, `httpx`, `requests`, `aiohttp`, `tls-client`, `primp`, `rnet` | TLS/JA3/JA4, HTTP/2-3 cohérents — rapide, pas de DOM |
@@ -119,14 +128,17 @@ flowchart LR
     VALID --> PG[(PostgreSQL — curated)]
     ROUTER --> OBS[OpenTelemetry]
     CLASS --> OBS
-    OBS --> PROM[Prometheus / Grafana]
-    OBS --> TEMPO[Tempo]
-    OBS --> LOKI[Loki]
+    OBS --> VM[VictoriaMetrics — métriques]
+    OBS --> VL[VictoriaLogs — logs]
+    OBS --> TEMPO[Tempo — traces]
+    VM --> GRAF[Grafana — dashboards]
+    VL --> GRAF
+    TEMPO --> GRAF
 ```
 
 Cohérent avec la **cascade d'ingestion** du projet (API → HTML déterministe → IA dernier recours, cf.
 `structure.md` §7 et ADR 0009 du monorepo `carto_entreprises`) et le socle (Dagster, Ceph RGW,
-PostgreSQL) + la couche **observabilité optionnelle** (OpenTelemetry/Prometheus/Grafana/Tempo/Loki — *à suivre*, couche `03`).
+PostgreSQL) + la couche **observabilité optionnelle** (OpenTelemetry → VictoriaMetrics / VictoriaLogs / Tempo, dashboards Grafana — *à suivre*, couche `03`).
 
 ---
 

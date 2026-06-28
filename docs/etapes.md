@@ -78,7 +78,7 @@ Branches **parallélisables** une fois P2/P4 en place : P5 (navigation), P7 (pro
 
 | ✓ | Étape / livrable | Techno | Dépend de | Priorité |
 |---|---|---|---|---|
-| [ ] | Dépendances dans `pyproject.toml` (httpx, scrapy, playwright, celery, pydantic, boto3, warcio, opentelemetry…) | uv | — | **MVP** |
+| [ ] | Dépendances dans `pyproject.toml` (httpx, scrapy, playwright, temporalio, pydantic, boto3, warcio, opentelemetry…) | uv | — | **MVP** |
 | [ ] | Lockfile + sync (`uv lock` / `uv sync`) | uv | deps | **MVP** |
 | [ ] | Config qualité : `ruff`, `mypy`, `pytest` (déjà esquissés dans pyproject) | ruff/mypy/pytest | — | **MVP** |
 | [ ] | `Makefile` (install, lint, test, up, down) + `.env.example` | make | — | **MVP** |
@@ -187,7 +187,7 @@ Branches **parallélisables** une fois P2/P4 en place : P5 (navigation), P7 (pro
 
 | ✓ | Étape / livrable | Techno | Dépend de | Priorité |
 |---|---|---|---|---|
-| [ ] | Observabilité : `correlation_id` bout-en-bout, métriques par stratégie, traces, logs | OpenTelemetry + Prometheus/Grafana/Loki/Tempo | P2 | V1 |
+| [ ] | Observabilité : `correlation_id` bout-en-bout, métriques par stratégie, traces, logs | OpenTelemetry + VictoriaMetrics/VictoriaLogs/Tempo/Grafana | P2 | V1 |
 | [ ] | Boucle de retour (analyse opérationnelle, ajustement gouverné) | code | observabilité | V1 |
 | [ ] | Tests & replay (scénario, résilience, non-régression, **rejeu WARC**) | pytest + warcio | P8 | V1 |
 

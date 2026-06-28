@@ -3,6 +3,8 @@
 > **Groupes** : A (pilotage et parcours), B (orchestration distribuée).
 > **Prérequis** : `00-hub.md`, `01-contrats-modele-donnees.md`.
 > **Contenu** : déclenchement, contrôleur de parcours, file de tâches, routage, cycle de vie, garanties de traitement, résilience.
+>
+> **Réalisation (cf. `08-stack-techno.md` + ADR module 0001)** : ce fichier décrit le *comportement attendu* du pilotage et de la distribution, indépendamment de l'outil. Concrètement, ces fonctions ne sont **pas à construire** : le **moteur interne est Temporal** (durable execution). File à baux, file différée, file des échecs (DLQ), accusé de traitement, idempotence, réconciliation et reprise (checkpoints) sont des **primitives natives, event-sourced** (groupe H « gratuit »). Les **workers** sont des **activités** Temporal en Python (toute I/O dans une activité = déterminisme). **Valkey** sert au **cache / sessions partagées** (plus broker). Le **déclenchement** vient du **plan de contrôle Dagster** (monorepo, ADR 0013) : pas de second ordonnanceur (ni Schedules Temporal, ni Beat).
 
 ---
 
@@ -82,13 +84,13 @@ flowchart TB
     DELAY --> QUEUE
 ```
 
-Fonctions de distribution couvertes : planification, file, priorité, réservation temporaire (bail), accusé de traitement, contrôle de concurrence, backpressure, répartition par capacité, mise à l'échelle, arrêt propre, file des échecs, réconciliation des tâches abandonnées.
+Fonctions de distribution couvertes : planification, file, priorité, réservation temporaire (bail), accusé de traitement, contrôle de concurrence, backpressure, répartition par capacité, mise à l'échelle, arrêt propre, file des échecs, réconciliation des tâches abandonnées. **Toutes ces fonctions sont natives Temporal** (cf. encart d'en-tête) — bail = *task lease*, réconciliation = *heartbeat / timeout*, file des échecs = DLQ event-sourced ; rien n'est à recoder. La **planification** (déclenchement) est, elle, externe : c'est **Dagster** (ADR 0013), pas un ordonnanceur interne.
 
 ---
 
 ## 3. Machine d'état du cycle de vie
 
-État canonique d'une acquisition, aligné sur les `final_status` du fichier 01.
+État canonique d'une acquisition, aligné sur les `final_status` du fichier 01. Cette FSM se modélise **« as code »** dans **Temporal** (corps de workflow) avec des modèles **Pydantic** pour les états et transitions ; la file durable qui la porte (bail, DLQ, réconciliation) est **native Temporal**, pas un composant à construire.
 
 ```mermaid
 stateDiagram-v2
@@ -185,7 +187,7 @@ end
 @enduml
 ```
 
-Le bail (réservation temporaire) protège contre la perte d'un worker : si l'accusé n'arrive pas avant l'expiration, le réconciliateur ré-enfile la tâche. Couplé à l'idempotence (§ 4), cela donne une sémantique « au moins une fois » sans double effet.
+Le bail (réservation temporaire) protège contre la perte d'un worker : si l'accusé n'arrive pas avant l'expiration, le réconciliateur ré-enfile la tâche. Couplé à l'idempotence (§ 4), cela donne une sémantique « au moins une fois » sans double effet. **En pratique, Temporal fournit ce schéma nativement** : le bail et la réconciliation correspondent au *heartbeat* d'activité et au *timeout*, la ré-exécution étant rejouée depuis l'historique event-sourced.
 
 ---
 

@@ -2,7 +2,10 @@
 
 > **Groupe** : C (session et réseau).
 > **Prérequis** : `00-hub.md`, `01-contrats-modele-donnees.md`.
-> **Contenu** : gestion de session, contrôle d'accès, couche réseau, contrôle des sorties et anti-SSRF, adaptation du contexte.
+> **Contenu** : gestion de session, contrôle d'accès, couche réseau, contrôle des sorties et anti-SSRF (différé pré-production), adaptation du contexte.
+> **Stack** : client HTTP **httpx** (sync+async, HTTP/2, pool, timeouts, en-têtes conditionnels ETag/304, streaming) ; transport furtif **curl_cffi** (TLS/JA3, escalade N2) ; cache conditionnel **Hishel** ; sniffing MIME **filetype** ; détection charset **charset-normalizer**. Détail : `08-stack-techno.md`.
+>
+> 🔒 **POC sans contrainte.** Le contrôle des sorties / anti-SSRF / DNS pinné (§ 4) est documenté comme **architecture cible** mais relève de la **phase pré-production** : **aucun blocage actif au POC**. Voir l'encart du hub (`00-hub.md`).
 
 ---
 
@@ -57,7 +60,7 @@ EGRESS --> TARGET
 @enduml
 ```
 
-La couche réseau est commune aux trois moteurs (HTTP, rendu, fichier). Le contrôle des adresses résolues s'intercale entre la résolution DNS et l'établissement de connexion : c'est le point anti-SSRF.
+La couche réseau est commune aux trois moteurs (HTTP, rendu, fichier). Côté client HTTP, elle s'appuie sur **httpx** (pool de connexions, HTTP/2, délais de connexion/lecture, en-têtes conditionnels) ; le transport furtif **curl_cffi** (empreinte TLS/JA3) est mobilisé en escalade. Le contrôle des adresses résolues s'intercalerait entre la résolution DNS et l'établissement de connexion (point anti-SSRF) — **prévu mais inactif au POC**, voir § 4.
 
 ---
 
@@ -101,9 +104,9 @@ Chaque échange alimente le contrat `HttpExchange` (fichier 01) : timings DNS/co
 
 ---
 
-## 4. Contrôle des sorties et anti-SSRF
+## 4. Contrôle des sorties et anti-SSRF *(architecture cible — phase pré-production)*
 
-Point de sécurité critique. Le contrôle des adresses résolues précède toute connexion et est rejoué après chaque redirection.
+> 🔒 **Différé pré-production — inactif au POC.** Au POC le module **collecte librement**, sans allowlist de domaines, sans blocage d'adresses ni politique d'egress. La cible décrite ci-dessous (contrôle des adresses résolues précédant toute connexion, rejoué après chaque redirection, DNS pinné) est **à coder en phase pré-production** — elle dépend des pays visés. Aucun outil dédié n'est encore « Sélectionné » (cf. `08-stack-techno.md`, `etapes.md`). Le diagramme et le tableau ci-après documentent ce mécanisme **futur**, pas un contrôle appliqué au POC.
 
 ```mermaid
 flowchart TB

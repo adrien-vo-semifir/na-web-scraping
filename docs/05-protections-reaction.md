@@ -3,6 +3,8 @@
 > **Groupe** : F (protections et réaction).
 > **Prérequis** : `00-hub.md`, `04-moteur-navigation.md`.
 > **Posture** : détecter, classifier et journaliser les protections rencontrées.
+>
+> **Outillage (cf. `08-stack-techno.md` §5).** Trois briques de ce groupe sont **à coder** — aucun outil dédié ne les porte : la **classification du *block subi* en sortie** (soft / hard, §2-§3) — les détecteurs de bots existants ciblent les attaquants *entrants* d'une infra, pas les blocages que le collecteur *subit* ; le **moteur de politique de réaction** (§4), arbre de décision métier ; la **qualification du contrôle d'environnement subi** (§5). Côté **signal d'automatisation** uniquement (qu'une page expose *sur nous*), une bibliothèque de fingerprinting (BotD / FingerprintJS, *à suivre*) peut alimenter l'analyse ; elle ne classe pas le block. L'**exécution** des réactions est portée par le moteur interne (Temporal) et déclenchée par le plan de contrôle (Dagster) — la **décision** reste ce code de politique.
 
 ---
 
@@ -113,10 +115,12 @@ flowchart TB
     POLICY --> BACK[Temporisation progressive]
     POLICY --> REAUTH[Renouvellement d'authentification autorisé]
     POLICY --> RESCHED[Replanification]
+    POLICY --> ESCAL[Escalade au cran suivant de la cascade]
     POLICY --> SUSPEND[Suspension de la source]
     POLICY --> STOP[Arrêt de l'acquisition]
     REAUTH --> SESSION[Vers gestion de session]
     RESCHED --> TASK[Vers nouvelle demande]
+    ESCAL --> ROUTER[Vers routeur de stratégie]
 ```
 
 Éventail des réactions autorisées :
@@ -130,8 +134,11 @@ Protection détectée
 ├── demander une intervention humaine
 ├── replanifier l'acquisition
 ├── suspendre la source
+├── escalader (cran suivant de la cascade)
 └── arrêter l'acquisition
 ```
+
+> **POC vs gouvernance.** « Autorisé » renvoie ici à la **politique de réaction** (un composant), **pas** à une contrainte de collecte active au POC : au POC, **toute la cascade** est disponible sans contrainte — y compris l'**escalade** (furtif, managé, solveurs ; cf. `08-stack-techno.md` §4 et la règle immuable du POC). Le **gating par autorisation** (légalité / CGU / droit de réutilisation par source) relève de la **phase pré-production**, jamais du POC. L'escalade suit l'ordre de **coût croissant** de la cascade, pilotée par la qualification soft / hard (§3) : on n'escalade que si le contenu reste bloqué ou incomplet.
 
 ---
 

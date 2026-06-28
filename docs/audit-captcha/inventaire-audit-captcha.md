@@ -21,7 +21,7 @@ Les colonnes chiffrées (étoiles, forks, contributeurs, issues/PR, commits 30/9
 
 ## 1. Synthèse exécutive
 
-Les 44 dépôts couvrent quatre familles : **Défense** (WAF, anti-bot, alternatives CAPTCHA), **Analyse/OCR** (baseline de robustesse), **Laboratoire offensif** (solveurs, anti-détection — usage isolé) et **Industrialisation** (automatisation, métrologie, accessibilité).
+Les 44 dépôts couvrent quatre familles : **Défense** (WAF, anti-bot, alternatives CAPTCHA), **Analyse/OCR** (baseline de robustesse), **Laboratoire offensif** (solveurs, anti-détection — recommandé en environnement isolé) et **Industrialisation** (automatisation, métrologie, accessibilité).
 
 **Constats structurants tirés des données collectées** :
 
@@ -102,7 +102,7 @@ Les quatre vues ci-dessous dérivent du même tableau maître. Légende maintena
 
 ---
 
-### Vue 3 — Laboratoire offensif (usage autorisé et isolé uniquement)
+### Vue 3 — Laboratoire offensif (solveurs / anti-détection)
 
 | # | Dépôt | ★ | Forks | Contrib | Maintenance | Comm. 90j | Licence | Compat. proprio | SEC | Adv | CI |
 |--|--|--|--|--|--|--|--|--|--|--|--|
@@ -118,7 +118,7 @@ Les quatre vues ci-dessous dérivent du même tableau maître. Légende maintena
 | 10 | [QIN2DIM/hcaptcha-challenger](https://github.com/QIN2DIM/hcaptcha-challenger) | 2 344 | 430 | 11 | 🟡 Faible | 1 | GPL-3.0 | Incompatible distribution propriétaire | — | 0 | ✓ |
 | 11 | [sarperavci/GoogleRecaptchaBypass](https://github.com/sarperavci/GoogleRecaptchaBypass) | 1 785 | 279 | 3 | 🟡 Faible | 5 | ⚠ Aucune | À valider (licence non standard / absente) | — | 0 | — |
 
-> **Cadre d'emploi impératif (vue 3)** : ces dépôts ne doivent jamais être exécutés depuis un poste de production, ni avec des comptes, cookies, jetons ou secrets réels. Usage limité à un périmètre possédé ou explicitement autorisé par contrat, avec journalisation et environnement isolé. Le contournement de CAPTCHA tiers (reCAPTCHA, hCaptcha, Turnstile) viole généralement les CGU et peut engager la responsabilité pénale selon la juridiction.
+> **Cadre d'emploi (vue 3)** — au **POC, aucune contrainte** : ces solveurs locaux (`ddddocr`, `hcaptcha-challenger`…) et outils anti-détection sont **autorisés et disponibles** pour valider la technologie ; la résolution de challenges (reCAPTCHA, hCaptcha, Turnstile) n'est **pas une contrainte du POC**. Bonne pratique d'ingénierie recommandée (non bloquante) : exécuter en environnement isolé, sans comptes/cookies/jetons/secrets réels. Le **cadrage légal** (CGU des tiers, droit de réutilisation, responsabilité selon la juridiction) relève de la **phase pré-production** dédiée — il dépend des pays cibles et est traité là, jamais au POC.
 
 ---
 
@@ -190,7 +190,7 @@ Les advisories les plus nombreuses concernent les projets matures et critiques (
 | **Production selon contexte** | go-captcha, mosparo, invisible_captcha (Rails), Prosopo, mCaptcha (sous réserve de maintenance) |
 | **Baseline d'analyse** | OpenCV, Tesseract, PaddleOCR, EasyOCR, Albumentations, Playwright |
 | **Laboratoire ML isolé** | ddddocr, captcha_trainer, cnn_captcha |
-| **Laboratoire offensif strictement autorisé** | undetected-chromedriver, nodriver, NopeCHA, Buster, hcaptcha-challenger, GoogleRecaptchaBypass |
+| **Laboratoire offensif** (solveurs / anti-détection ; isolé recommandé) | undetected-chromedriver, nodriver, NopeCHA, Buster, hcaptcha-challenger, GoogleRecaptchaBypass |
 | **À écarter d'un nouveau projet** | laravel-auth (démo applicative), easy12306 (solveur dormant, licence atypique), dépôts dormants |
 
 > Chaque choix « production » reste conditionné à : (1) validation juridique de la licence, (2) collecte du score OpenSSF Scorecard, (3) exécution du benchmark du §9.

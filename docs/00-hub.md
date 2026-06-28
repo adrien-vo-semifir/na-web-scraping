@@ -1,4 +1,4 @@
-ddd# 00 — Hub : plateforme d'acquisition de contenu web
+# 00 — Hub : plateforme d'acquisition de contenu web
 
 > **Rôle de ce document** : point d'entrée. Pose l'architecture macro, le diagramme de composants global, la frontière de responsabilité et l'index des fichiers de détail. Logique **macro → micro**.
 > **Scope** : pages web et leur contenu uniquement. Trois moteurs — HTTP statique, rendu navigateur, téléchargement de fichier. **Hors scope** : API REST/GraphQL et flux RSS/Atom/Sitemap (chantiers distincts).
@@ -324,7 +324,7 @@ Architecture cible documentée dans les fichiers 01 à 07. Pour un premier dépl
 | `acquisition-browser-worker` | Moteur rendu navigateur (isolé) |
 | `acquisition-storage` | Écriture brut, métadonnées, événements |
 
-Services d'infrastructure partagés : file de messages, base relationnelle (configuration et métadonnées), coffre à secrets, stockage objet, cache. L'observabilité (métriques, traces, journaux) est branchée transversalement dès le MVP.
+Services d'infrastructure partagés : moteur de pilotage durable (file de tâches, retries, reprise event-sourced — pas de broker séparé), base relationnelle (configuration et métadonnées), stockage objet, cache + sessions. Le **coffre à secrets** est un emplacement **scaffold** (durcissement sécurité = **phase pré-production**, cf. fichier 08 §5), pas un prérequis du POC. L'observabilité (métriques, traces, journaux) est branchée transversalement dès le MVP.
 
 ---
 

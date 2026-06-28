@@ -32,6 +32,8 @@ RESUME --> ENGINE : Checkpoint restauré
 @enduml
 ```
 
+> **Convention de stockage (cf. `08-stack-techno.md`, ADR 0007)** : le « Stockage brut » est **Ceph RGW** (objet S3, accès **boto3**) — c'est le **contrat raw** qui couple le module au monorepo. Artefacts, échanges HTTP et manifests de métadonnées y sont déposés sous le préfixe `raw/` (Parquet + JSON Pydantic). Le module n'écrit **jamais** directement Postgres / Qdrant / Neo4j. Le « Gestionnaire de reprise » et ses checkpoints sont, eux, **internes** (état de workflow Temporal, event-sourced — cf. fichier 02).
+
 ---
 
 ## 2. Identifiants et idempotence
@@ -251,7 +253,7 @@ HttpExchange
 
 ## 7. Contrat — checkpoint
 
-État sérialisable permettant la reprise d'une navigation longue. Détail du mécanisme dans le fichier 07.
+État sérialisable permettant la reprise d'une navigation longue. Détail du mécanisme dans le fichier 07. Ce contrat décrit la *forme logique* de l'état restaurable ; sa **matérialisation est native** : l'historique **event-sourced** du workflow **Temporal** fait office de checkpoint (`serializable_state` / `visited_resources` / `frontier_state` quasi implicites — cf. fichier 02, ADR module 0001), `redb` n'étant qu'une option de store local complémentaire.
 
 ```text
 Checkpoint
