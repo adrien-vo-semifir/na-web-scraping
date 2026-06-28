@@ -1,0 +1,27 @@
+# Reverse-proxy Windmill (image caddy-l4 = Caddy + plugin layer4).
+# Repris du Caddyfile officiel Windmill v1.742.0 ; seule modif : ligne `bind {$ADDRESS}`
+# retirée (ADDRESS non défini -> erreur de parsing ; par défaut Caddy écoute toutes interfaces).
+
+{
+	layer4 {
+		:25 {
+			proxy {
+				to windmill_server:2525
+			}
+		}
+	}
+}
+
+{$BASE_URL} {
+	# Services extra : LSP / Multiplayer / Debugger (passerelle windmill_extra)
+	reverse_proxy /ws/* /ws_mp/* /ws_debug/* http://windmill_extra:3000
+
+	# Indexer recherche plein-texte (Enterprise) — desactive
+	# reverse_proxy /api/srch/* http://windmill_indexer:8002
+
+	# Defaut : serveur Windmill (UI + API)
+	reverse_proxy /* http://windmill_server:8000
+
+	# TLS avec certificats custom
+	# tls /certs/cert.pem /certs/key.pem
+}
