@@ -5,7 +5,7 @@
 > [`00-hub.md`](00-hub.md) · décision monorepo : **ADR 0021**.
 
 > **Doc de référence d'architecture** — pas un benchmark universel. Le détail outil par outil (stars, activité,
-> licence, pérennité…) vit dans le **référentiel** `technologies-referentiel.xlsx` (monorepo `carto_entreprises`)
+> licence, pérennité…) vit dans le **référentiel du module** `technologies.xlsx` (feuille `web-scraping`)
 > (catégorie *Scraping & extraction web*). Ce document donne la **stratégie d'escalade**, les **signaux anti-bot**
 > et l'**architecture cible**.
 

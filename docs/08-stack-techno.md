@@ -2,7 +2,7 @@
 
 > **Rôle** : reco de technologies pour ce module, **croisée avec le référentiel** du monorepo `carto_entreprises`
 > et en lien avec le [`00-hub.md`](00-hub.md) (§6). L'`État` indiqué = statut
-> dans le référentiel (`technologies-referentiel.xlsx`, monorepo). **Rien n'est imposé : l'utilisateur arbitre.**
+> dans le référentiel du module (`technologies.xlsx`, feuille `web-scraping`). **Rien n'est imposé : l'utilisateur arbitre.**
 > **Prérequis** : `00-hub.md`, `01-contrats-modele-donnees.md`.
 
 ## 1. Cadre
@@ -21,7 +21,7 @@
 | **Rendu navigateur** | **Playwright** | ✅ Sélectionné | JS/SPA/shadow-DOM/iframes, contextes **éphémères**, capture réseau/HAR. Alt : SeleniumBase, pydoll |
 | **Crawl HTML** | **Scrapy** | ✅ Sélectionné | Ordonnancement, AutoThrottle (respect), file d'URLs ; **Scrapy-Playwright** pour escalader vers le rendu JS |
 | **Plan de contrôle** | **Dagster** | ✅ Sélectionné | Schedules/sensors/retries + replanification (côté monorepo, ADR 0013) |
-| **Moteur interne** (pilotage/distribution/**reprise**) | **Temporal** | À suivre → **tranché** | Durable execution : file, retries, **idempotence + checkpoints/reprise natifs** (groupe H). Workers Python = **activités**. Réutilise Postgres. **Remplace Celery** (cf. feuille `comparatifs`). |
+| **Moteur interne** (pilotage/distribution/**reprise**) | **Temporal** | À suivre → **tranché** | Durable execution : file, retries, **idempotence + checkpoints/reprise natifs** (groupe H). Workers Python = **activités**. Réutilise Postgres. **Remplace Celery** (cf. feuille `comparatifs`, référentiel monorepo). |
 | Cache / sessions | **Valkey** | À suivre | Cache (validateurs ETag) + sessions partagées. **Plus broker** — Temporal a sa propre persistance. Fork BSD de Redis. |
 | **Store objet** (artefacts) | **Ceph RGW** | ✅ Sélectionné | `raw/` — réponse brute, rendu, snapshot, fichier, échange HTTP |
 | Base (config/méta/dédup) | **PostgreSQL** | ✅ Sélectionné | *en aval (via manifest raw)* — l'acquisition n'écrit pas Postgres directement |
@@ -85,7 +85,7 @@ sans secret en clair, fichier 07) relève de la **phase pré-production** (pour 
 2. **Extraction des données métier (le *sens*) : dans le module, ou en aval ?** — l'**analyse de page pour
    naviguer** est, elle, **dans le module** (cf. §3). Pour l'extraction du *sens* (newspaper4k / Scrapling /
    crawl4ai) : au POC c'est **libre** ; reste à fixer où elle vit (module vs futur module *extraction*).
-3. ✅ **Moteur de pilotage interne tranché : Temporal** (durable execution — file/retries/idempotence/**reprise groupe H** natifs ; remplace Celery). Valkey reste **cache/sessions** (plus broker). Cf. feuille `comparatifs` + ADR module. Discipline : cantonné intra-module (Dagster déclenche, ADR 0013) ; toute I/O dans des **activités** (déterminisme).
+3. ✅ **Moteur de pilotage interne tranché : Temporal** (durable execution — file/retries/idempotence/**reprise groupe H** natifs ; remplace Celery). Valkey reste **cache/sessions** (plus broker). Cf. feuille `comparatifs` (référentiel monorepo) + ADR module. Discipline : cantonné intra-module (Dagster déclenche, ADR 0013) ; toute I/O dans des **activités** (déterminisme).
 4. ✅ **Briques tranchées** (cf. §5) : hashlib/blake3, filetype/puremagic, charset-normalizer, Hishel, boto3.
 5. ✅ **Client HTTP tranché : httpx « Sélectionné »** (sync+async, HTTP/2) ; aiohttp en alternative haute-charge.
 

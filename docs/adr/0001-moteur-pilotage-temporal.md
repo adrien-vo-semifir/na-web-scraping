@@ -2,14 +2,14 @@
 
 - **Statut** : Accepté — 2026-06-28
 - **Périmètre** : module `web-scraping` (groupes **A** pilotage, **B** orchestration distribuée, **H** persistance/reprise du blueprint [`00-hub.md`](../00-hub.md))
-- **Liens** : [`08-stack-techno.md`](../08-stack-techno.md) (feuille `comparatifs` du référentiel), [`01-contrats-modele-donnees.md`](../01-contrats-modele-donnees.md), [`02-pilotage-distribution.md`](../02-pilotage-distribution.md), [`07-…`](../07-persistance-securite-exploitation.md) ; monorepo : ADR 0013 (Dagster = plan de contrôle), ADR 0021 (module = submodule).
+- **Liens** : [`08-stack-techno.md`](../08-stack-techno.md) (feuille `comparatifs`, référentiel monorepo), [`01-contrats-modele-donnees.md`](../01-contrats-modele-donnees.md), [`02-pilotage-distribution.md`](../02-pilotage-distribution.md), [`07-…`](../07-persistance-securite-exploitation.md) ; monorepo : ADR 0013 (Dagster = plan de contrôle), ADR 0021 (module = submodule).
 
 ## Contexte
 
 Le cœur du module (groupes A/B/H) demande : file à baux + DLQ, garanties (au-moins-une-fois + **idempotence**),
 machine d'état (fichier 01), et surtout **reprise sans perte d'état** de navigations longues (checkpoints,
 `frontier_state`). Une comparaison approfondie de 5 moteurs (Temporal, Hatchet, Bento, Apache Camel, Celery) a été
-menée (feuille `comparatifs` du référentiel).
+menée (feuille `comparatifs`, référentiel monorepo).
 
 **Principe directeur appliqué** (repo-wide, cf. CLAUDE.md) : **le POC est une base destinée à la PRODUCTION** et
 doit être au plus proche du final → on valorise les qualités de **production** (durabilité, idempotence, reprise,
