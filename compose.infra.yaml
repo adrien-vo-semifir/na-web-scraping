@@ -1,0 +1,26 @@
+# Infra PARTAGÉE du POC web-scraping : le LAC (store objet S3), commun aux deux orchestrateurs.
+#
+# Source de vérité UNIQUE du raw — comme Ceph RGW en production : un store EXTERNE partagé,
+# jamais « possédé » par un orchestrateur. SeaweedFS au POC ; Ceph RGW en prod (même API S3).
+# Les stacks Temporal et Windmill rejoignent le réseau `carto_lake` et écrivent dans s3://lake/raw/…
+#
+#   docker network create carto_lake             # le réseau du lac (UNE seule fois)
+#   docker compose -f compose.infra.yaml up -d    # démarre le lac (UI :9333, S3 :8333)
+name: web-scraping-infra
+
+networks:
+  carto_lake:
+    external: true        # créé hors compose : `docker network create carto_lake`
+
+volumes:
+  lake_data:
+
+services:
+  # Le LAC : SeaweedFS (POC) ↔ Ceph RGW (prod), même API S3. Bucket `lake`, zones en préfixes.
+  seaweedfs:
+    image: chrislusf/seaweedfs:${SEAWEEDFS_VERSION:-latest}
+    restart: unless-stopped
+    command: "server -s3 -dir=/data"
+    volumes: [lake_data:/data]
+    networks: [carto_lake]
+    ports: ["${S3_PORT:-8333}:8333", "${S3_UI_PORT:-9333}:9333"]

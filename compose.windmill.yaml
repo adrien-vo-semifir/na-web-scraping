@@ -26,6 +26,8 @@ x-logging: &default-logging
 networks:
   windmill_net:
     driver: bridge
+  carto_lake:
+    external: true        # le LAC partagé (cf. compose.infra.yaml) : `docker network create carto_lake`
 
 volumes:
   windmill_db_data:
@@ -34,7 +36,6 @@ volumes:
   windmill_index:
   lsp_cache:
   caddy_data:
-  seaweedfs_data:
 
 services:
   # =================== Postgres (source de vérité Windmill) ===================
@@ -55,17 +56,7 @@ services:
       retries: 5
     logging: *default-logging
 
-  # Store objet S3 LOCAL de la stack Windmill (POC autonome). En prod = Ceph RGW (même API S3).
-  # Instance propre à Windmill (la stack Temporal a la sienne) ; port hôte distinct (8334) pour
-  # cohabiter avec le seaweedfs de Temporal (8333). Les workers l'atteignent en DNS : seaweedfs:8333.
-  seaweedfs:
-    image: chrislusf/seaweedfs:${SEAWEEDFS_VERSION:-latest}
-    restart: unless-stopped
-    command: "server -s3 -dir=/data"
-    volumes: [seaweedfs_data:/data]
-    networks: [windmill_net]
-    ports: ["${WM_S3_PORT:-8334}:8333"]
-    logging: *default-logging
+  # (Le LAC — seaweedfs — est désormais une infra PARTAGÉE : voir compose.infra.yaml + réseau carto_lake.)
 
   # =================== Plan de contrôle (API + UI) ===================
   windmill_server:
@@ -141,9 +132,9 @@ services:
       MODE: worker
       WORKER_GROUP: reports          # groupe dédié (pattern officiel Windmill)
       WORKER_TAGS: chromium          # ne sert QUE les jobs taggés "chromium" (rang N3)
-      # Sink S3 -> seaweedfs de CETTE stack (DNS conteneur sur windmill_net).
+      # Sink S3 -> le LAC PARTAGÉ (seaweedfs sur carto_lake, compose.infra.yaml). Prod = Ceph RGW.
       S3_ENDPOINT: ${WM_S3_ENDPOINT:-http://seaweedfs:8333}
-      S3_BUCKET: ${S3_BUCKET:-raw}
+      S3_BUCKET: ${S3_BUCKET:-lake}          # lac unique ; zones en préfixes (raw/ staging/ curated/ …)
       S3_REGION: ${S3_REGION:-us-east-1}
       S3_ACCESS_KEY_ID: ${S3_ACCESS_KEY_ID:-any}
       S3_SECRET_ACCESS_KEY: ${S3_SECRET_ACCESS_KEY:-any}
@@ -151,9 +142,8 @@ services:
       WHITELIST_ENVS: S3_ENDPOINT,S3_BUCKET,S3_REGION,S3_ACCESS_KEY_ID,S3_SECRET_ACCESS_KEY
     depends_on:
       db: { condition: service_healthy }
-      seaweedfs: { condition: service_started }
     volumes: [worker_logs:/tmp/windmill/logs]
-    networks: [windmill_net]
+    networks: [windmill_net, carto_lake]       # carto_lake = accès au lac partagé
     logging: *default-logging
 
   # =================== Indexer recherche plein-texte (Enterprise) — désactivé ===================

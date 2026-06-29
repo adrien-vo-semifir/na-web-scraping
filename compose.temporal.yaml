@@ -6,11 +6,12 @@ name: web-scraping
 networks:
   web_scraping_net:
     driver: bridge
+  carto_lake:
+    external: true        # le LAC partagé (cf. compose.infra.yaml) : `docker network create carto_lake`
 
 volumes:
   postgres_data:
   valkey_data:
-  seaweedfs_data:
 
 services:
   # =================== Infra partagée (k8s/infra en prod) ===================
@@ -61,14 +62,7 @@ services:
     networks: [web_scraping_net]
     ports: ["${VALKEY_PORT:-6379}:6379"]
 
-  # Store objet S3 LOCAL pour le POC autonome ; en prod = Ceph RGW (externe, même API S3).
-  seaweedfs:
-    image: chrislusf/seaweedfs:${SEAWEEDFS_VERSION:-latest}
-    restart: unless-stopped
-    command: "server -s3 -dir=/data"
-    volumes: [seaweedfs_data:/data]
-    networks: [web_scraping_net]
-    ports: ["${S3_PORT:-8333}:8333", "${S3_UI_PORT:-9333}:9333"]
+  # (Le LAC — seaweedfs — est désormais une infra PARTAGÉE : voir compose.infra.yaml + réseau carto_lake.)
 
   # =================== Workers (profil opt-in : besoin de contracts/gen + code) ===================
   workflow-worker:                   # Go — porte les Workflows (orchestration/temporal/workflows-go)
@@ -77,18 +71,18 @@ services:
       context: .
       dockerfile: docker/workflow-worker/Dockerfile
     restart: unless-stopped
-    depends_on: [temporal, seaweedfs]
+    depends_on: [temporal]
     environment:
       TEMPORAL_ADDRESS: temporal:7233
       TASK_QUEUE: ${TASK_QUEUE:-acquisition}
-      # Sink S3 -> SeaweedFS (POC). En prod : pointer S3_ENDPOINT sur Ceph RGW (même API).
+      # Sink S3 -> le LAC PARTAGÉ (seaweedfs sur carto_lake, compose.infra.yaml). Prod = Ceph RGW.
       SINK: ${SINK:-s3}
       S3_ENDPOINT: ${S3_ENDPOINT:-http://seaweedfs:8333}
-      S3_BUCKET: ${S3_BUCKET:-raw}
+      S3_BUCKET: ${S3_BUCKET:-lake}          # lac unique ; zones en préfixes (raw/ staging/ curated/ …)
       S3_REGION: ${S3_REGION:-us-east-1}
       S3_ACCESS_KEY_ID: ${S3_ACCESS_KEY_ID:-any}
       S3_SECRET_ACCESS_KEY: ${S3_SECRET_ACCESS_KEY:-any}
-    networks: [web_scraping_net]
+    networks: [web_scraping_net, carto_lake]   # carto_lake = accès au lac partagé
 
   control-api:                       # platform/control-api — entrée REST des commandes
     profiles: ["workers"]
