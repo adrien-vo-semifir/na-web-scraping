@@ -146,6 +146,36 @@ flowchart LR
 
 Le rendu s'appuie sur **Playwright** (SPA, shadow DOM, iframes, capture réseau/HAR) ; en escalade furtive — domaine résistant — des dérivés Playwright-natifs ou Firefox sont mobilisables *(Patchright, Camoufox, nodriver — À suivre)*. Le contexte navigateur est éphémère et cloisonné (fichier 07, isolation). L'acquisition porte sur le document après exécution, pas seulement sur le HTML initial.
 
+### 5.1. Furtivité du navigateur (rang N3)
+
+Playwright **vanilla** fuit des signaux d'automatisation que les anti-bots modernes vérifient (40+ propriétés) : `navigator.webdriver=true`, marqueur `HeadlessChrome` dans l'UA, plugins manquants, `chrome.runtime` absent, empreinte WebGL. Le rang navigateur réel applique donc des correctifs « règles de l'art ».
+
+| Levier | Mesure |
+| --- | --- |
+| Patches stealth | **playwright-stealth** (Python, API context-manager) en best effort ; à défaut, patches manuels (`navigator.webdriver` neutralisé, `window.chrome.runtime`) — 🔒 stealth/évasion **autorisés au POC** |
+| UA cohérent | Vraie string Chrome (jamais un UA bot sur un vrai navigateur = incohérence triviale) ; suppression du marqueur « Headless » |
+| Flags propres | Retirer `--single-process` et `--disable-gpu` (non-navigateur, détectables) ; ajouter `--disable-blink-features=AutomationControlled` (retire `navigator.webdriver`) ; conserver `--no-sandbox --disable-dev-shm-usage` (conteneur) |
+| Headed + Xvfb | Mode *headed* sous écran virtuel — le *headless* reste plus détectable |
+| Contexte cohérent | `locale` (fr-FR), `timezone_id` (Europe/Paris), `viewport` alignés entre eux |
+
+Chromium **système** (`/usr/bin/chromium`) est piloté via `executable_path` (pas de téléchargement Playwright, pas de désalignement de version).
+
+### 5.2. Furtif spécialisé (rang N4)
+
+Quand un blocage navigateur résiste au rang N3, l'escalade vise des moteurs furtifs spécialisés :
+
+| Moteur | Base | Profil |
+| --- | --- | --- |
+| **Patchright** | chromium | Drop-in Playwright, patche au niveau driver (furtif natif) |
+| **nodriver** | chromium | Cible les protections type Cloudflare |
+| **Camoufox** | Firefox | Empreinte Firefox cohérente, furtivité maximale |
+
+Patchright et nodriver (base chromium) peuvent **partager le pool browser** ; Camoufox (Firefox) requiert une **image / un pool séparés**.
+
+### 5.3. Worker browser dédié
+
+Le rendu navigateur s'exécute sur un **worker group dédié** (groupe `reports`, profil opt-in `browser`) portant un **tag** (ex. `chromium`). Le tag désigne la **capacité** du worker — ce qui y est installé — **pas** le rang de cascade : un worker tagué `chromium` sert les jobs N3 et N4 à base chromium ; Camoufox, sur Firefox, relève d'une image / d'un pool distincts.
+
 ---
 
 ## 6. Détermination de l'état prêt

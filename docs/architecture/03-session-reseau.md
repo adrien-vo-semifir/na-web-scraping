@@ -102,6 +102,17 @@ flowchart LR
 
 Chaque échange alimente le contrat `HttpExchange` (fichier 01) : timings DNS/connect/TLS/TTFB, version de protocole, adresse résolue, réutilisation de connexion.
 
+### 3.1 Empreintes de transport et cohérence inter-couches
+
+Avant même qu'une réponse soit produite, la cible (CDN, pare-feu applicatif) lit l'**empreinte de transport** au niveau réseau :
+
+- **TLS** : l'ordre des extensions du ClientHello (JA3, ancien ; JA4 = FoxIO, qui **trie** les extensions) identifie la pile cliente.
+- **HTTP/2** : l'empreinte Akamai (paramètres `SETTINGS`, `WINDOW_UPDATE`, ordre des pseudo-en-têtes) caractérise l'implémentation du protocole.
+
+Ces empreintes sont détectées **avant toute réponse**, au niveau réseau / CDN — indépendamment des en-têtes applicatifs.
+
+**Principe de cohérence.** L'empreinte doit être cohérente **entre couches** : `User-Agent` ↔ TLS/JA3 ↔ HTTP/2 ↔ en-têtes. Une **incohérence** (par ex. un `User-Agent` « Chrome » porté par un TLS « Python/OpenSSL ») est un signal de bot **fort** — parfois pire qu'un bot honnête mais cohérent. `httpx` (OpenSSL) **ne peut pas** être rendu cohérent avec un navigateur par simple configuration ; obtenir cette cohérence exige un moteur d'**impersonation** (`curl_cffi` / curl-impersonate, BoringSSL) mobilisé au **rang N2** (cf. `strategie-anti-bot.md`, fichier 05).
+
 ---
 
 ## 4. Contrôle des sorties et anti-SSRF *(architecture cible — phase pré-production)*
@@ -197,3 +208,27 @@ flowchart LR
 | Usurpation d'empreinte |
 | Ajustement du rythme d'accès |
 | Choix du mode de rendu adapté |
+
+---
+
+## 7. Réutilisation de session — *solve-once-then-cheap*
+
+La résolution d'un challenge anti-bot mobilise un rang **coûteux** (navigateur / furtif). Plutôt que de la rejouer page par page, on la mutualise **par domaine** :
+
+1. **Résoudre une fois** le challenge pour le domaine (rang navigateur/furtif coûteux).
+2. **Cacher la session** qui fonctionne dans **Valkey** (rôle : cache / sessions partagées) — cookie `cf_clearance` + empreinte/JA3 cohérente.
+3. **Moissonner le reste** des pages du domaine en **N2 `curl_cffi`** *cheap*, en rejouant cette session cachée.
+
+Cela transforme le « furtif **par page** » en « furtif **par domaine** » — levier clé pour la volumétrie. La session cachée porte les mêmes éléments que la session vivante (cookies, jetons), avec en plus l'empreinte de transport associée, garante de la **cohérence** (§ 3.1) lors du rejeu en N2.
+
+```mermaid
+flowchart LR
+    DOMAIN[Domaine cible] --> CACHE{Session en cache Valkey ?}
+    CACHE -- Oui --> CHEAP[N2 curl_cffi : rejouer cf_clearance + JA3]
+    CACHE -- Non --> SOLVE[Rang navigateur/furtif : résoudre le challenge]
+    SOLVE --> STORE[Cacher la session dans Valkey]
+    STORE --> CHEAP
+    CHEAP --> PAGES[Moisson des pages du domaine]
+```
+
+Le choix « rang coûteux pour résoudre » vs « N2 *cheap* pour rejouer » s'inscrit dans le **routage par rang** (N1 transport simple, N2 impersonation) ; la cascade complète est décrite dans `strategie-anti-bot.md` et le fichier 05.

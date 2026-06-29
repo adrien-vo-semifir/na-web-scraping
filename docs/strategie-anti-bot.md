@@ -8,6 +8,10 @@
 > licence, pérennité…) vit dans le **référentiel du module** `technologies.xlsx` (feuille `web-scraping`)
 > (catégorie *Scraping & extraction web*). Ce document donne la **stratégie d'escalade**, les **signaux anti-bot**
 > et l'**architecture cible**.
+>
+> **Bibliographie** — la documentation détaillée (JA3/JA4, curl-impersonate, white paper HTTP/2 d'Akamai,
+> stealth Playwright, outils `fingerproxy` / Scrapfly) est référencée dans `docs/sources.xlsx` du **monorepo**
+> `carto_entreprises`, catégorie *Scraping — furtif / anti-bot*.
 
 ## Cadre — ⏸️ POC SANS CONTRAINTES
 
@@ -58,6 +62,45 @@ colonne *Rang / repli*).
 | **Scraping IA / agents** | Crawl4AI, Firecrawl, Scrapling, Stagehand, browser-use, ReaderLM/Jina, LLM-Scraper | dernier recours, parcours variables |
 | **Archivage WARC** | warcio, ArchiveBox, brozzler, pywb, grab-site, Browsertrix | traçabilité / rejouabilité de la collecte |
 | **Managé (fallback)** | Zyte, Scrapfly, Bright Data, Oxylabs, ZenRows, ScrapingBee, Browserless, Browserbase, Apify | IP+TLS+navigateur+sessions+challenges externalisés *(SaaS, non self-host)* |
+
+### 1.1 Config « règles de l'art » par rang
+
+Chaque cran n'a de valeur que **configuré correctement** ; une config bâclée fait perdre l'intérêt du rang (et
+déclenche une escalade inutile). Référence d'implémentation déployée : `acquire_cascade.inline_script.py` (flow
+Windmill `u/admin/acquisition`).
+
+- **N1 — http (`httpx`)** : poser des **en-têtes COMPLETS et réalistes**, pas seulement un User-Agent. UA Chrome
+  réel + `Accept`, `Accept-Language`, `Accept-Encoding`, **Client Hints** (`sec-ch-ua`, `sec-ch-ua-mobile`,
+  `sec-ch-ua-platform`) et `Sec-Fetch-*` (`Dest`/`Mode`/`Site`/`User`). Cela assure la *content negotiation* et bat
+  les heuristiques « en-tête manquant ». **Limite intrinsèque** : l'empreinte transport reste « Python » (cf. §1.2).
+- **N2 — curl_cffi (impersonation TLS/JA3)** : utiliser une **`Session`** (réutilisation cookie/connexion) +
+  `impersonate` (ex. `chrome`). On **ne force PAS l'UA** : l'impersonation pose un jeu d'en-têtes + ordre cohérents
+  avec le TLS imité. **Recommandé** : **pin de la version** de `curl_cffi` (le profil imité suit une version de
+  Chrome donnée) et **la tenir à jour** pour rester aligné sur les navigateurs courants.
+- **N3 — navigateur (Playwright / chromium)** : UA Chrome **cohérent** avec le binaire (jamais une string « bot »
+  sur un vrai chromium), `--disable-blink-features=AutomationControlled` (supprime `navigator.webdriver`) et flags
+  **propres** — **éviter `--single-process` / `--disable-gpu`**, atypiques d'un vrai navigateur et donc détectables.
+  Ajouter les **patches stealth** (playwright-stealth / Patchright), un contexte **locale / timezone / viewport**
+  cohérents (ex. `fr-FR`, `Europe/Paris`, 1920×1080) ; **headed + Xvfb** est l'idéal côté furtivité.
+
+---
+
+## 1.2 Pourquoi N1 et N2 sont deux rangs distincts (frontière de librairie TLS)
+
+N1→N2 n'est **pas** une question de configuration mais une **frontière de bibliothèque** : on ne peut **pas** rendre
+`httpx` cohérent avec un navigateur en ajustant ses options.
+
+- **Empreinte TLS (JA3/JA4)** : `httpx` négocie via **OpenSSL** → empreinte JA3/JA4 typée « Python », repérable.
+  `curl_cffi` s'appuie sur **curl-impersonate (BoringSSL)** → empreinte TLS d'un **vrai Chrome**.
+- **HTTP/2 fingerprinting** : l'**ordre des extensions TLS**, le **GREASE** et les **paramètres HTTP/2 `SETTINGS`**
+  (et l'ordre des trames) sont des **propriétés de la librairie**, **non exposées** à la configuration applicative.
+  On ne peut donc pas les aligner depuis `httpx`.
+- **Incohérence UA ↔ TLS** : poser un **User-Agent navigateur sur un transport TLS Python** crée une **incohérence
+  directement détectable** (l'en-tête dit « Chrome », la poignée de main dit « Python »). C'est précisément ce que
+  N2 corrige en imitant le transport, et non l'inverse.
+
+> En clair : N1 optimise la **couche applicative** (en-têtes) ; N2 change la **couche transport** (TLS + HTTP/2).
+> Ce sont deux strates différentes — d'où deux crans.
 
 ---
 

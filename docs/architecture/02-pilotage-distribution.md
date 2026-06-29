@@ -2,7 +2,7 @@
 
 > **Groupes** : A (pilotage et parcours), B (orchestration distribuée).
 > **Prérequis** : `00-hub.md`, `01-contrats-modele-donnees.md`.
-> **Contenu** : déclenchement, contrôleur de parcours, file de tâches, routage, cycle de vie, garanties de traitement, résilience.
+> **Contenu** : déclenchement, contrôleur de parcours, file de tâches, routage, tiers de workers, traitement par lots (tamis), cycle de vie, garanties de traitement, résilience.
 >
 > **Réalisation (cf. `08-stack-techno.md` + ADR module 0001)** : ce fichier décrit le *comportement attendu* du pilotage et de la distribution, indépendamment de l'outil. Concrètement, ces fonctions ne sont **pas à construire** : le **moteur interne est Temporal** (durable execution). File à baux, file différée, file des échecs (DLQ), accusé de traitement, idempotence, réconciliation et reprise (checkpoints) sont des **primitives natives, event-sourced** (groupe H « gratuit »). Les **workers** sont des **activités** Temporal en Python (toute I/O dans une activité = déterminisme). **Valkey** sert au **cache / sessions partagées** (plus broker). Le **déclenchement** vient du **plan de contrôle Dagster** (monorepo, ADR 0013) : pas de second ordonnanceur (ni Schedules Temporal, ni Beat).
 
@@ -86,9 +86,62 @@ flowchart TB
 
 Fonctions de distribution couvertes : planification, file, priorité, réservation temporaire (bail), accusé de traitement, contrôle de concurrence, backpressure, répartition par capacité, mise à l'échelle, arrêt propre, file des échecs, réconciliation des tâches abandonnées. **Toutes ces fonctions sont natives Temporal** (cf. encart d'en-tête) — bail = *task lease*, réconciliation = *heartbeat / timeout*, file des échecs = DLQ event-sourced ; rien n'est à recoder. La **planification** (déclenchement) est, elle, externe : c'est **Dagster** (ADR 0013), pas un ordonnanceur interne.
 
+Le routage de l'étape `ROUTE` (Statique → HTTP, Dynamique → rendu, Fichier → téléchargement) répartit chaque tâche **par capacité de worker**, pas par rang de cascade (cf. § 3 et § 4).
+
 ---
 
-## 3. Machine d'état du cycle de vie
+## 3. Tiers de workers (capacité, non rang)
+
+Les workers sont segmentés en **trois pools** par **coût et capacité**, dimensionnés pour la volumétrie. Le **tag d'un worker = sa capacité technique**, **jamais le rang dans la cascade** d'escalade : le routeur (§ 2) et le tamis (§ 4) y adressent des tâches selon le besoin, pas selon une position figée.
+
+| Pool | Capacité | Niveaux servis | Profil de mise à l'échelle |
+| --- | --- | --- | --- |
+| `http` | léger : httpx (N1) + curl_cffi (N2) | statique | scale massif, concurrence haute |
+| `browser` | Chromium (rendu) | N3 | borné, RAM élevée |
+| `stealth` | furtif (N4) | N4 | le plus petit, **isolé** (egress / proxies résidentiels dédiés, compteur de coût) |
+
+Les pools sont **scalés indépendamment**. L'isolation du pool `stealth` sert surtout à cloisonner l'**egress** et les **proxies dédiés** et à porter un **compteur de coût** distinct.
+
+---
+
+## 4. Traitement par lots (tamis)
+
+Modèle de **débit** complémentaire de l'escalade **par-URL** : une **catégorie de sites** forme un **lot** (par ex. 500 ou 10 000 sites) traité **niveau par niveau**. Le lot entier passe d'abord au niveau **le moins coûteux** (passe « normale » : N1/N2, pool `http`) ; les **succès sortent**, les **échecs sont persistés** et constituent l'**entrée de la passe supérieure** (`browser`, puis `stealth`), passe après passe.
+
+```mermaid
+flowchart TB
+    L0[Lot · catégorie de sites<br>≈ 10 000] --> P1[Passe N1/N2 · pool http]
+    P1 -- succès --> OUT1([Sortis])
+    P1 -- échecs persistés ≈ 2 000 --> P2[Passe N3 · pool browser]
+    P2 -- succès --> OUT2([Sortis])
+    P2 -- échecs persistés ≈ 500 --> P3[Passe N4 · pool stealth]
+    P3 -- succès --> OUT3([Sortis])
+    P3 -- résidu ≈ 50 --> DLQ([File des échecs])
+```
+
+**Funnel observable** (ex. 10 000 → 2 000 → 500 → 50). Avantages :
+
+- **maximise** la part traitée au niveau *cheap* avant d'engager les niveaux chers ;
+- **batche** les ressources coûteuses (le pool `stealth` n'est lancé qu'une fois une vraie **fournée** constituée) ;
+- **révision et scheduling indépendants** par niveau ;
+- les **listes d'échecs** de chaque passe sont des **artefacts persistés**.
+
+**Réalisation Temporal** : un niveau = une **itération** de workflow ; le passage au niveau supérieur se fait par **`continue-as-new`** sur la **liste d'échecs** (le résidu qui rétrécit à chaque passe). La file, les baux et la DLQ restent natifs (encart d'en-tête).
+
+### Coexistence avec l'escalade par-URL
+
+Les deux régimes **coexistent** et adressent les mêmes tiers (§ 3) :
+
+| Régime | Optimise | Mécanique |
+| --- | --- | --- |
+| **Escalade par-URL** | latence par site | un workflow grimpe la cascade jusqu'au succès |
+| **Tamis par-lots** | débit · observabilité · batch des ressources chères | passes successives sur le résidu d'échecs |
+
+> Une évaluation **Windmill** a servi à comparer l'approche (fan-out déclaratif + partition des échecs) ; le **moteur du module reste Temporal** (ADR module 0001).
+
+---
+
+## 5. Machine d'état du cycle de vie
 
 État canonique d'une acquisition, aligné sur les `final_status` du fichier 01. Cette FSM se modélise **« as code »** dans **Temporal** (corps de workflow) avec des modèles **Pydantic** pour les états et transitions ; la file durable qui la porte (bail, DLQ, réconciliation) est **native Temporal**, pas un composant à construire.
 
@@ -137,7 +190,7 @@ Chaque transition précise : acteur responsable, délai maximal, événement pro
 
 ---
 
-## 4. Idempotence et garanties
+## 6. Idempotence et garanties
 
 ```mermaid
 flowchart LR
@@ -154,7 +207,7 @@ Principe : une nouvelle tentative réutilise `acquisition_id` et `execution_id`,
 
 ---
 
-## 5. Diagramme de séquence — réservation, exécution, accusé
+## 7. Diagramme de séquence — réservation, exécution, accusé
 
 Dialogue entre file, worker et cycle de vie, avec gestion du bail.
 
@@ -187,11 +240,11 @@ end
 @enduml
 ```
 
-Le bail (réservation temporaire) protège contre la perte d'un worker : si l'accusé n'arrive pas avant l'expiration, le réconciliateur ré-enfile la tâche. Couplé à l'idempotence (§ 4), cela donne une sémantique « au moins une fois » sans double effet. **En pratique, Temporal fournit ce schéma nativement** : le bail et la réconciliation correspondent au *heartbeat* d'activité et au *timeout*, la ré-exécution étant rejouée depuis l'historique event-sourced.
+Le bail (réservation temporaire) protège contre la perte d'un worker : si l'accusé n'arrive pas avant l'expiration, le réconciliateur ré-enfile la tâche. Couplé à l'idempotence (§ 6), cela donne une sémantique « au moins une fois » sans double effet. **En pratique, Temporal fournit ce schéma nativement** : le bail et la réconciliation correspondent au *heartbeat* d'activité et au *timeout*, la ré-exécution étant rejouée depuis l'historique event-sourced.
 
 ---
 
-## 6. Contrôleur de parcours
+## 8. Contrôleur de parcours
 
 Découplé des moteurs. Gère la frontière priorisée et la boucle de découverte.
 
@@ -218,7 +271,7 @@ Responsabilités de la frontière : priorité, profondeur maximale, domaine auto
 
 ---
 
-## 7. Résilience
+## 9. Résilience
 
 ```mermaid
 flowchart TB
