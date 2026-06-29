@@ -34,6 +34,7 @@ volumes:
   windmill_index:
   lsp_cache:
   caddy_data:
+  seaweedfs_data:
 
 services:
   # =================== Postgres (source de vérité Windmill) ===================
@@ -52,6 +53,18 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
+    logging: *default-logging
+
+  # Store objet S3 LOCAL de la stack Windmill (POC autonome). En prod = Ceph RGW (même API S3).
+  # Instance propre à Windmill (la stack Temporal a la sienne) ; port hôte distinct (8334) pour
+  # cohabiter avec le seaweedfs de Temporal (8333). Les workers l'atteignent en DNS : seaweedfs:8333.
+  seaweedfs:
+    image: chrislusf/seaweedfs:${SEAWEEDFS_VERSION:-latest}
+    restart: unless-stopped
+    command: "server -s3 -dir=/data"
+    volumes: [seaweedfs_data:/data]
+    networks: [windmill_net]
+    ports: ["${WM_S3_PORT:-8334}:8333"]
     logging: *default-logging
 
   # =================== Plan de contrôle (API + UI) ===================
@@ -128,8 +141,17 @@ services:
       MODE: worker
       WORKER_GROUP: reports          # groupe dédié (pattern officiel Windmill)
       WORKER_TAGS: chromium          # ne sert QUE les jobs taggés "chromium" (rang N3)
+      # Sink S3 -> seaweedfs de CETTE stack (DNS conteneur sur windmill_net).
+      S3_ENDPOINT: ${WM_S3_ENDPOINT:-http://seaweedfs:8333}
+      S3_BUCKET: ${S3_BUCKET:-raw}
+      S3_REGION: ${S3_REGION:-us-east-1}
+      S3_ACCESS_KEY_ID: ${S3_ACCESS_KEY_ID:-any}
+      S3_SECRET_ACCESS_KEY: ${S3_SECRET_ACCESS_KEY:-any}
+      # Windmill ISOLE l'env des jobs : il faut whitelister les variables exposées aux scripts.
+      WHITELIST_ENVS: S3_ENDPOINT,S3_BUCKET,S3_REGION,S3_ACCESS_KEY_ID,S3_SECRET_ACCESS_KEY
     depends_on:
       db: { condition: service_healthy }
+      seaweedfs: { condition: service_started }
     volumes: [worker_logs:/tmp/windmill/logs]
     networks: [windmill_net]
     logging: *default-logging

@@ -13,4 +13,5 @@ def main(acq: dict):
             "http": {"status": acq["status"], "protocol": acq["protocol"],
                      "content_type": acq["content_type"], "body_len": acq["body_len"],
                      "body_sha256": acq["body_sha256"]},
-            "object_key": object_key, "observed_at": acq["observed_at"]}
+            "object_key": object_key, "observed_at": acq["observed_at"],
+            "s3_uris": acq.get("s3_uris", [])}

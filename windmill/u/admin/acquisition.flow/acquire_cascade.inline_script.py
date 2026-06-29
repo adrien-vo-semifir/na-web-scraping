@@ -3,10 +3,13 @@ from urllib.parse import urlparse
 import httpx
 from curl_cffi import requests as creq
 from playwright.sync_api import sync_playwright
+import json
 try:
     import playwright_stealth  # auto-installé par Windmill ; patches stealth (best effort)
 except Exception:
     playwright_stealth = None
+import boto3                                  # top-level -> Windmill installe le paquet (+ botocore)
+from botocore.config import Config as _BotoConfig
 
 # Étape 1 — CASCADE D'ESCALADE (équivalent du corps de workflow d'acquisition).
 # Rangs N1->N4 (managé N5 = SaaS, hors socle). N1/N2 = fetch réel ; N3/N4 = worker dédié (marqueur).
@@ -39,6 +42,32 @@ def _apply_stealth(page):
         playwright_stealth.stealth_sync(page)
     elif hasattr(playwright_stealth, "Stealth"):
         playwright_stealth.Stealth().apply_stealth_sync(page)
+
+
+# Sink S3 (SeaweedFS au POC / Ceph RGW en prod) — écrit le triplet response/http_exchange/manifest.
+MAP_STATE = {"success": "SUCCESS", "incomplete_spa": "BLOCKED", "blocked": "BLOCKED",
+             "permanent": "PERMANENT", "retryable": "RETRYABLE"}
+
+def _store_s3(source, dataset, day, acq_id, body_bytes, exchange, manifest):
+    if boto3 is None or not os.environ.get("S3_ENDPOINT"):
+        return []                                  # pas de S3 configuré -> on n'écrit pas
+    s3 = boto3.client("s3", endpoint_url=os.environ["S3_ENDPOINT"],
+                      aws_access_key_id=os.environ.get("S3_ACCESS_KEY_ID", "any"),
+                      aws_secret_access_key=os.environ.get("S3_SECRET_ACCESS_KEY", "any"),
+                      region_name=os.environ.get("S3_REGION", "us-east-1"),
+                      config=_BotoConfig(s3={"addressing_style": "path"}))
+    bucket = os.environ.get("S3_BUCKET", "raw")
+    prefix = "raw/%s/%s/%s/%s" % (source, dataset, day, acq_id)
+    uris = []
+    for name, data, ct in [
+        ("response.bin", body_bytes, manifest.get("content_type") or "application/octet-stream"),
+        ("http_exchange.json", json.dumps(exchange, ensure_ascii=False).encode("utf-8"), "application/json"),
+        ("manifest.json", json.dumps(manifest, ensure_ascii=False, indent=2).encode("utf-8"), "application/json"),
+    ]:
+        key = "%s/%s" % (prefix, name)
+        s3.put_object(Bucket=bucket, Key=key, Body=data, ContentType=ct)
+        uris.append("s3://%s/%s" % (bucket, key))
+    return uris
 
 def _fetch(url, rank):
     if rank == "http":
@@ -106,22 +135,38 @@ def main(url: str, source: str = "web", dataset: str = "pages",
     else:
         start = entry_rank
     ladder = LADDER[LADDER.index(start): LADDER.index(max_rank) + 1]
-    attempts, chosen = [], None
+    attempts, chosen, chosen_enc = [], None, b""
     for rank in ladder:
         status, headers, body, proto = _fetch(url, rank)
         cls = _classify(rank, status, headers.get("content-type", ""), body)
         enc = body.encode("utf-8", "ignore")
+        chosen_enc = enc                       # corps complet du rang retenu (pour S3)
         chosen = {"rang": rank, "status": status, "protocol": proto, "classification": cls,
                   "content_type": headers.get("content-type", ""), "body_len": len(enc),
                   "body_sha256": hashlib.sha256(enc).hexdigest(), "body_preview": body[:500]}
         attempts.append({k: chosen[k] for k in ("rang", "status", "classification", "protocol")})
         if cls in ("success", "permanent", "retryable"):
             break                              # on n'escalade que si bloqué / incomplet
+
+    observed_at = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
+    day = observed_at[:10]
+    final_state = MAP_STATE.get(chosen["classification"], "PERMANENT")
+    exchange = {"method": "GET", "url": url, "status": chosen["status"],
+                "content_type": chosen["content_type"], "protocol": chosen["protocol"],
+                "observed_at": observed_at}
+    manifest = {"acquisition_id": acquisition_id, "url": url, "source": source, "dataset": dataset,
+                "configuration_version": configuration_version, "observed_at": observed_at,
+                "final_classification": chosen["classification"], "final_state": final_state,
+                "rang_used": chosen["rang"], "content_type": chosen["content_type"],
+                "http": {"status": chosen["status"], "protocol": chosen["protocol"],
+                         "content_type": chosen["content_type"], "body_len": chosen["body_len"],
+                         "body_sha256": chosen["body_sha256"]}}
+    s3_uris = _store_s3(source, dataset, day, acquisition_id, chosen_enc, exchange, manifest)
     return {"acquisition_id": acquisition_id, "url": url, "source": source, "dataset": dataset,
-            "configuration_version": configuration_version,
-            "observed_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
+            "configuration_version": configuration_version, "observed_at": observed_at,
             "entry": start, "ladder": ladder, "attempts": attempts, "rang_used": chosen["rang"],
             "final_classification": chosen["classification"],
             "status": chosen["status"], "protocol": chosen["protocol"],
             "content_type": chosen["content_type"], "body_len": chosen["body_len"],
-            "body_sha256": chosen["body_sha256"], "body_preview": chosen["body_preview"]}
+            "body_sha256": chosen["body_sha256"], "body_preview": chosen["body_preview"],
+            "s3_uris": s3_uris}
