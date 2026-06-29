@@ -130,13 +130,13 @@ func StoreResult(
 		Error:         joinReasons(finalState, reasons),
 	}
 
-	// Le manifest décrit l'acquisition complète : on l'écrit comme dernier objet,
-	// sous la même zone que ses artefacts (<zone>/.../<acquisition_id>/manifest.json).
+	// Le manifest (index + lignage) vit dans la zone `metadata` du lac et RÉFÉRENCE les
+	// artefacts data (eux en raw/ ou rejected/ selon l'issue) : zone des données ≠ zone du manifest.
 	manifestJSON, err := json.MarshalIndent(result, "", "  ")
 	if err != nil {
 		return nil, fmt.Errorf("storage: sérialisation du manifest: %w", err)
 	}
-	manifestKey := shared.ObjectKey(cmd, zone, NameManifest)
+	manifestKey := shared.ObjectKey(cmd, "metadata", NameManifest)
 	if _, err := sink.Write(manifestKey, manifestJSON, "application/json", manifestMeta(cmd, finalState)); err != nil {
 		return nil, fmt.Errorf("storage: écriture du manifest: %w", err)
 	}

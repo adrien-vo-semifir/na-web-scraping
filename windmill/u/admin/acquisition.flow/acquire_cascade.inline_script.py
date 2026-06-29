@@ -57,16 +57,16 @@ def _store_s3(source, dataset, day, acq_id, body_bytes, exchange, manifest):
                       region_name=os.environ.get("S3_REGION", "us-east-1"),
                       config=_BotoConfig(s3={"addressing_style": "path"}))
     bucket = os.environ.get("S3_BUCKET", "lake")
-    # Zone du lac selon l'issue : succès -> raw (source immuable) ; échec -> rejected (quarantaine).
-    zone = "raw" if manifest.get("final_state") in ("SUCCESS", "UNCHANGED") else "rejected"
-    prefix = "%s/%s/%s/%s/%s" % (zone, source, dataset, day, acq_id)
+    # Données -> raw (succès) | rejected (échec) ; manifest -> metadata (index + lignage).
+    data_zone = "raw" if manifest.get("final_state") in ("SUCCESS", "UNCHANGED") else "rejected"
+    acq = "%s/%s/%s/%s" % (source, dataset, day, acq_id)
     uris = []
-    for name, data, ct in [
-        ("response.bin", body_bytes, manifest.get("content_type") or "application/octet-stream"),
-        ("http_exchange.json", json.dumps(exchange, ensure_ascii=False).encode("utf-8"), "application/json"),
-        ("manifest.json", json.dumps(manifest, ensure_ascii=False, indent=2).encode("utf-8"), "application/json"),
+    for name, data, ct, zone in [
+        ("response.bin", body_bytes, manifest.get("content_type") or "application/octet-stream", data_zone),
+        ("http_exchange.json", json.dumps(exchange, ensure_ascii=False).encode("utf-8"), "application/json", data_zone),
+        ("manifest.json", json.dumps(manifest, ensure_ascii=False, indent=2).encode("utf-8"), "application/json", "metadata"),
     ]:
-        key = "%s/%s" % (prefix, name)
+        key = "%s/%s/%s" % (zone, acq, name)
         s3.put_object(Bucket=bucket, Key=key, Body=data, ContentType=ct)
         uris.append("s3://%s/%s" % (bucket, key))
     return uris
