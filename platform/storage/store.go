@@ -100,9 +100,12 @@ func StoreResult(
 
 	observedAt := time.Now().UTC()
 
+	// Zone du lac selon l'issue : succès -> raw (source immuable) ; échec -> rejected (quarantaine).
+	zone := shared.Zone(finalState)
+
 	artifacts := make([]*acquisitionv1.Artifact, 0, len(blobs))
 	for _, b := range blobs {
-		key := shared.ObjectKey(cmd, b.Name)
+		key := shared.ObjectKey(cmd, zone, b.Name)
 		uri, err := sink.Write(key, b.Data, b.ContentType, manifestMeta(cmd, finalState))
 		if err != nil {
 			return nil, fmt.Errorf("storage: écriture de l'artefact %q: %w", b.Name, err)
@@ -128,12 +131,12 @@ func StoreResult(
 	}
 
 	// Le manifest décrit l'acquisition complète : on l'écrit comme dernier objet,
-	// sous la même arborescence (raw/.../<acquisition_id>/manifest.json).
+	// sous la même zone que ses artefacts (<zone>/.../<acquisition_id>/manifest.json).
 	manifestJSON, err := json.MarshalIndent(result, "", "  ")
 	if err != nil {
 		return nil, fmt.Errorf("storage: sérialisation du manifest: %w", err)
 	}
-	manifestKey := shared.ObjectKey(cmd, NameManifest)
+	manifestKey := shared.ObjectKey(cmd, zone, NameManifest)
 	if _, err := sink.Write(manifestKey, manifestJSON, "application/json", manifestMeta(cmd, finalState)); err != nil {
 		return nil, fmt.Errorf("storage: écriture du manifest: %w", err)
 	}

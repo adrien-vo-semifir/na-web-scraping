@@ -1,0 +1,12 @@
+{
+  "bucket": "lake",
+  "zones": {
+    "landing":  "Réception temporaire",
+    "raw":      "Donnée source originale et immuable",
+    "staging":  "Parsing et nettoyage technique",
+    "curated":  "Donnée normalisée et validée métier",
+    "serving":  "Formats optimisés pour API, BI ou recherche",
+    "rejected": "Erreurs, données invalides, quarantaine",
+    "metadata": "Manifests, lignage, schémas, métriques"
+  }
+}

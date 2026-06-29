@@ -56,8 +56,10 @@ def _store_s3(source, dataset, day, acq_id, body_bytes, exchange, manifest):
                       aws_secret_access_key=os.environ.get("S3_SECRET_ACCESS_KEY", "any"),
                       region_name=os.environ.get("S3_REGION", "us-east-1"),
                       config=_BotoConfig(s3={"addressing_style": "path"}))
-    bucket = os.environ.get("S3_BUCKET", "raw")
-    prefix = "raw/%s/%s/%s/%s" % (source, dataset, day, acq_id)
+    bucket = os.environ.get("S3_BUCKET", "lake")
+    # Zone du lac selon l'issue : succès -> raw (source immuable) ; échec -> rejected (quarantaine).
+    zone = "raw" if manifest.get("final_state") in ("SUCCESS", "UNCHANGED") else "rejected"
+    prefix = "%s/%s/%s/%s/%s" % (zone, source, dataset, day, acq_id)
     uris = []
     for name, data, ct in [
         ("response.bin", body_bytes, manifest.get("content_type") or "application/octet-stream"),

@@ -24,22 +24,36 @@ func Sha256Hex(data []byte) string {
 
 // ObjectKey construit la clé objet d'un artefact selon la convention du lac :
 //
-//	raw/<source>/<dataset>/<YYYY-MM-DD>/<acquisition_id>/<name>
+//	<zone>/<source>/<dataset>/<YYYY-MM-DD>/<acquisition_id>/<name>
 //
-// La date (UTC) est celle du jour d'acquisition. `source` et `dataset` absents sont
-// remplacés par "_" pour garder une arborescence stable et non vide.
-func ObjectKey(cmd *acquisitionv1.AcquisitionCommand, name string) string {
+// `zone` est la zone du lac (cf. Zone) : "raw" pour une acquisition aboutie, "rejected"
+// pour un échec (quarantaine). La date (UTC) est celle du jour d'acquisition ; `source`
+// et `dataset` absents sont remplacés par "_" pour garder une arborescence stable.
+func ObjectKey(cmd *acquisitionv1.AcquisitionCommand, zone, name string) string {
 	source := segment(cmd.Source)
 	dataset := segment(cmd.Dataset)
 	day := time.Now().UTC().Format("2006-01-02")
 	return strings.Join([]string{
-		"raw",
+		zone,
 		source,
 		dataset,
 		day,
 		cmd.AcquisitionId(),
 		name,
 	}, "/")
+}
+
+// Zone retourne la zone du lac correspondant à un état final : "raw" si l'acquisition a
+// abouti (donnée source immuable), "rejected" sinon (quarantaine : bloqué / définitif /
+// transitoire). Les autres zones (staging/curated/serving/metadata/landing) relèvent des
+// couches aval, pas de l'acquisition.
+func Zone(state acquisitionv1.FinalState) string {
+	switch state {
+	case acquisitionv1.FinalState_SUCCESS, acquisitionv1.FinalState_UNCHANGED:
+		return "raw"
+	default:
+		return "rejected"
+	}
 }
 
 // segment normalise un fragment de clé : valeur vide -> "_", sinon nettoyée des
