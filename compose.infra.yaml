@@ -5,7 +5,7 @@
 # Les stacks Temporal et Windmill rejoignent le réseau `carto_lake` et écrivent dans s3://lake/raw/…
 #
 #   docker network create carto_lake             # le réseau du lac (UNE seule fois)
-#   docker compose -f compose.infra.yaml up -d    # démarre le lac (UI :9333, S3 :8333)
+#   docker compose -f compose.infra.yaml up -d    # démarre le lac (S3 :8333, explorateur/filer :8888, master :9333)
 name: web-scraping-infra
 
 networks:
@@ -23,7 +23,8 @@ services:
     command: "server -s3 -dir=/data"
     volumes: [lake_data:/data]
     networks: [carto_lake]
-    ports: ["${S3_PORT:-8333}:8333", "${S3_UI_PORT:-9333}:9333"]
+    # 8333 = API S3 · 8888 = filer (explorateur de fichiers : http://localhost:8888/buckets/lake/) · 9333 = master (topologie)
+    ports: ["${S3_PORT:-8333}:8333", "${S3_FILER_PORT:-8888}:8888", "${S3_UI_PORT:-9333}:9333"]
 
   # Provisionnement IDEMPOTENT du lac (bucket + zones, cf. docker/lake/zones.json) : repasse à
   # chaque `up` sans risque. One-shot (restart:no) ; attend SeaweedFS puis crée bucket + zones.
