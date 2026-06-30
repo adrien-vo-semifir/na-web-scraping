@@ -1,13 +1,12 @@
-summary: Acquisition — cascade d'escalade (notre workflow)
-description: Cascade N1 http -> N2 curl_cffi -> N3 browser -> N4 stealth
-  (strategie-anti-bot.md). Entrée adaptative par domaine, escalade si
-  bloqué/incomplet. Même contrat (acquisition_id, final_state, object_key).
+summary: Acquisition — cascade d'escalade [For-loop + arrêt anticipé visibles]
+description: 'Escalade en nœuds natifs : plan (ladder) -> For-loop[attempt +
+  stop_after_if] -> finalize. Data->raw/rejected, manifest->metadata.'
 value:
   modules:
-    - id: acquire_cascade
+    - id: plan
       value:
         type: rawscript
-        content: '!inline acquire_cascade.inline_script.py'
+        content: '!inline plan.inline_script.py'
         input_transforms:
           configuration_version:
             type: javascript
@@ -27,18 +26,55 @@ value:
           url:
             type: javascript
             expr: flow_input.url
-        lock: '!inline acquire_cascade.inline_script.lock'
+        lock: '!inline plan.inline_script.lock'
         language: python3
-        tag: chromium
-    - id: validate
+    - id: loop
+      value:
+        type: forloopflow
+        modules:
+          - id: attempt
+            value:
+              type: rawscript
+              content: '!inline attempt.inline_script.py'
+              input_transforms:
+                configuration_version:
+                  type: javascript
+                  expr: results.plan.configuration_version
+                dataset:
+                  type: javascript
+                  expr: results.plan.dataset
+                is_last:
+                  type: javascript
+                  expr: flow_input.iter.index == results.plan.ladder.length - 1
+                rank:
+                  type: javascript
+                  expr: flow_input.iter.value
+                source:
+                  type: javascript
+                  expr: results.plan.source
+                url:
+                  type: javascript
+                  expr: results.plan.url
+              lock: '!inline attempt.inline_script.lock'
+              language: python3
+              tag: chromium
+            stop_after_if:
+              expr: result.chosen == true
+              skip_if_stopped: false
+        iterator:
+          type: javascript
+          expr: results.plan.ladder
+        parallel: false
+        skip_failures: false
+    - id: finalize
       value:
         type: rawscript
-        content: '!inline validate.inline_script.py'
+        content: '!inline finalize.inline_script.py'
         input_transforms:
-          acq:
+          attempts:
             type: javascript
-            expr: results.acquire_cascade
-        lock: '!inline validate.inline_script.lock'
+            expr: results.loop
+        lock: '!inline finalize.inline_script.lock'
         language: python3
 schema:
   $schema: https://json-schema.org/draft/2020-12/schema

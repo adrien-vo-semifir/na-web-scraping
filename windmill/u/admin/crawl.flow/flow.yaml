@@ -1,27 +1,42 @@
-summary: Crawl — pipeline conditionnel (site | liste) -> acquisition
-description: Branche site (mini-crawl liens) ou liste (seeds), puis fan-out
-  parallèle appelant la cascade d'escalade u/admin/acquisition par URL.
+summary: Crawl — pipeline conditionnel (site | liste) -> acquisition [nœuds
+  Branch + For-loop]
+description: Condition site|liste en nœud Branch natif + boucle For-loop natif
+  (visibles dans l'éditeur).
 value:
   modules:
-    - id: prepare
+    - id: route
       value:
-        type: rawscript
-        content: '!inline prepare.inline_script.py'
-        input_transforms:
-          kind:
-            type: javascript
-            expr: flow_input.kind
-          max_links:
-            type: javascript
-            expr: flow_input.max_links
-          site:
-            type: javascript
-            expr: flow_input.site
-          urls:
-            type: javascript
-            expr: flow_input.urls
-        lock: '!inline prepare.inline_script.lock'
-        language: python3
+        type: branchone
+        branches:
+          - summary: site → mini-crawl liens
+            modules:
+              - id: crawl_site
+                value:
+                  type: rawscript
+                  content: '!inline crawl_site.inline_script.py'
+                  input_transforms:
+                    max_links:
+                      type: javascript
+                      expr: flow_input.max_links
+                    site:
+                      type: javascript
+                      expr: flow_input.site
+                  lock: '!inline crawl_site.inline_script.lock'
+                  language: python3
+            expr: flow_input.kind == "site"
+            parallel: true
+            skip_failure: true
+        default:
+          - id: seeds
+            value:
+              type: rawscript
+              content: '!inline seeds.inline_script.py'
+              input_transforms:
+                urls:
+                  type: javascript
+                  expr: flow_input.urls
+              lock: '!inline seeds.inline_script.lock'
+              language: python3
     - id: loop
       value:
         type: forloopflow
@@ -51,7 +66,7 @@ value:
               path: u/admin/acquisition
         iterator:
           type: javascript
-          expr: results.prepare.urls
+          expr: results.route.urls
         parallel: true
         parallelism:
           type: static
