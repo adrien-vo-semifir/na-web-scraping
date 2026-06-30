@@ -1,6 +1,8 @@
 import hashlib, time, os, json
 from urllib.parse import urlparse
 import httpx
+import brotli            # noqa: F401  (décodeur br pour httpx N1 — sinon corps compressé illisible)
+import zstandard         # noqa: F401  (décodeur zstd pour httpx N1)
 from curl_cffi import requests as creq
 from playwright.sync_api import sync_playwright
 import boto3
@@ -10,7 +12,7 @@ CHROME_UA = ("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
              "(KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36")
 N1_HEADERS = {"User-Agent": CHROME_UA,
     "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8",
-    "Accept-Language": "fr-FR,fr;q=0.9,en-US;q=0.8,en;q=0.7", "Accept-Encoding": "gzip, deflate, br",
+    "Accept-Language": "fr-FR,fr;q=0.9,en-US;q=0.8,en;q=0.7", "Accept-Encoding": "gzip, deflate, br, zstd",
     "sec-ch-ua": '"Chromium";v="131", "Google Chrome";v="131", "Not_A Brand";v="24"',
     "sec-ch-ua-mobile": "?0", "sec-ch-ua-platform": '"Windows"',
     "Sec-Fetch-Dest": "document", "Sec-Fetch-Mode": "navigate", "Sec-Fetch-Site": "none",
@@ -54,6 +56,8 @@ def _fetch(url, rank):
 def _classify(rank, status, ct, body):
     ct = (ct or "").lower(); low = body.lower()
     if status == -1: return "blocked"
+    if "\x00" in body and ("html" in ct or "text" in ct or not ct):  # corps binaire/compressé non décodé
+        return "blocked"
     if status in (403, 429) or (("text/html" in ct or not ct) and any(m in low for m in CHALLENGE)):
         return "blocked"
     if status >= 500: return "retryable"
